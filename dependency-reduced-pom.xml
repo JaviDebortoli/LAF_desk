@@ -4,7 +4,7 @@
   <groupId>Javi</groupId>
   <artifactId>LAF_desk</artifactId>
   <name>LAF_desk</name>
-  <version>0.3</version>
+  <version>0.4</version>
   <build>
     <plugins>
       <plugin>

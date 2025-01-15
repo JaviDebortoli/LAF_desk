@@ -30,6 +30,7 @@ public class InferenceEngine {
         boolean anyNewFact;
         Fact newFact = null;
         int bodyPartsVerified;
+        String argument;
         
         do {
             
@@ -42,11 +43,27 @@ public class InferenceEngine {
 
                 for (String bodypart : rule.getBody()) { // Ciclo del cuerpo de cada una de las reglas
                     
+                    argument = null;
+                    
                     for (Fact fact : facts) { // Ciclo de hechos                       
 
-                        newFact = new Fact(rule.getHead(), fact.getArgument(), null); // Nuevo hecho
-                        if (bodypart.equals(fact.getName())) {
-
+                        if ( bodypart.equals(fact.getName()) && argument == null ) {    
+                            
+                            argument = fact.getArgument();
+                            
+                            // Nuevo hecho
+                            newFact = new Fact(rule.getHead(), fact.getArgument(), null);
+                            
+                            // Se cuenta el hecho dentro de los antecedentes de la regla
+                            potentialFacts.add(fact);
+                            bodyPartsVerified++;
+                            
+                        } else if (bodypart.equals(fact.getName()) && fact.getArgument().equals(argument)) {
+                            
+                            // Nuevo hecho
+                            newFact = new Fact(rule.getHead(), fact.getArgument(), null);
+                            
+                            // Se cuenta el hecho dentro de los antecedentes de la regla
                             potentialFacts.add(fact);
                             bodyPartsVerified++;
                             
@@ -68,7 +85,7 @@ public class InferenceEngine {
                         && anyAggregation(newFact) ){
                     
                     doAggregation( potentialFacts, newFact, rule ); // Añade un hecho con agregación 
-                    anyNewFact = true;
+                    anyNewFact = true; // Indica que hay que repetir el ciclo
 
                 }
                 
@@ -105,6 +122,7 @@ public class InferenceEngine {
             
             atributtes[i] = 0.0;
             
+            // Reemplazar los valores de X y Y, y evaluar la funcion para cada uno de los antecedentes
             for (Fact fact : potentialFacts) {
                 
                 expression = new ExpressionBuilder( functions[i][0] )
@@ -117,6 +135,7 @@ public class InferenceEngine {
                 
             }
             
+            // Reemplazar los valores de X y Y, y evaluar la funcion para la regla
             expression = new ExpressionBuilder( functions[i][0] )
                     .variables("X", "Y")
                     .build()
@@ -125,6 +144,7 @@ public class InferenceEngine {
             
             atributtes[i] = expression.evaluate();
             
+            // Ubicar los valores en el intervalo [0, 1]
             if (atributtes[i]>1) {
                 atributtes[i] = 1.0;
             } else if (atributtes[i]<0) {
@@ -308,14 +328,17 @@ public class InferenceEngine {
             
             atributtes[i] = 0.0;
             
+            // Reemplazar las variables X y Y de la expresion
             expression = new ExpressionBuilder( functions[i][1] )
                     .variables("X", "Y")
                     .build()
                     .setVariable("X", newFact.getAttributes()[i])
                     .setVariable("Y", removableFact.getAttributes()[i]);
             
+            // Evaluar la expresion con los parametros actuales
             atributtes[i] = expression.evaluate();
             
+            // Ubicar los valores en el intervalo [0, 1]
             if (atributtes[i]>1) {
                 atributtes[i] = 1.0;
             } else if (atributtes[i]<0) {
@@ -342,22 +365,21 @@ public class InferenceEngine {
             for (Fact fact : aggregatedFacts) {
                 
                 if(atributtes[i] == null){
-                    
                     atributtes[i] = fact.getAttributes()[i];
-                
                 } else {
-                    
+                    // Reemplazar las variables X y Y de la expresion
                     expression = new ExpressionBuilder(functions[i][1])
                             .variables("X", "Y")
                             .build()
                             .setVariable("X", atributtes[i])
                             .setVariable("Y", fact.getAttributes()[i]);
                     
+                    // Evaluar la expresion con los parametros actuales
                     atributtes[i] = expression.evaluate();
                 }
-            
             }
             
+            // Ubicar los valores en el intervalo [0, 1]
             if (atributtes[i]>1) {
                 atributtes[i] = 1.0;
             } else if (atributtes[i]<0) {
@@ -375,13 +397,16 @@ public class InferenceEngine {
         
         Set<Fact> negativeFacts = new HashSet<>();
         
+        // Capturar todos los hechos con una negacion
         for ( Fact fact : facts ) {
             if (fact.getName().contains("~")) {
                 negativeFacts.add(fact); // Añade a la lista los hechos con negaciones
             }
         }
         
+        // Recorrer todos los hechos con una negacion
         for (Fact nf : negativeFacts) {
+            // Recorrer todos los hechos y compararlos con los hechos negados
             for ( Fact fact : facts ) {
                 if (nf.getName().replace("~", "").equals(fact.getName()) &&
                     nf.getArgument().equals(fact.getArgument())) { // Se identifican hechos que entran en conflicto
@@ -408,14 +433,17 @@ public class InferenceEngine {
         
         for (int i = 0; i < attributtes.length; i++) { 
             
+            // Reemplazar las variables X y Y de la expresion
             expression = new ExpressionBuilder( functions[i][2] )
                     .variables("X", "Y")
                     .build()
                     .setVariable("X", f1.getAttributes()[i])
                     .setVariable("Y", f2.getAttributes()[i]);
             
+            // Evaluar la expresion con los parametros actuales
             attributtes[i] = expression.evaluate();
             
+            // Ubicar los valores en el intervalo [0, 1]
             if (attributtes[i]>1) {
                 attributtes[i] = 1.0;
             } else if (attributtes[i]<0) {
