@@ -11,7 +11,6 @@ import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 public class Tree extends JFrame {
     private final mxGraph graph;
@@ -20,8 +19,7 @@ public class Tree extends JFrame {
     private static final int PADDING = 20; // Padding interno para los nodos
     private static final Font NODE_FONT = new Font("Arial", Font.PLAIN, 12);
 
-    // Modificar el constructor para aceptar la nueva estructura de datos
-    public Tree(Map<KnowledgePiece, Set<Fact>> edges) {
+    public Tree(Map<KnowledgePiece, Fact> edges) {
         super("Árbol de Inferencias");
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -54,23 +52,16 @@ public class Tree extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    // Modificar el método createGraph para trabajar con la nueva estructura
-    private void createGraph(Map<KnowledgePiece, Set<Fact>> edges) {
-        // Crear primero todos los vértices
-        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+    private void createGraph(Map<KnowledgePiece, Fact> edges) {
+        for (Map.Entry<KnowledgePiece, Fact> entry : edges.entrySet()) {
             createVertex(entry.getKey());
-            for (Fact fact : entry.getValue()) {
-                createVertex(fact);
-            }
+            createVertex(entry.getValue());
         }
 
-        // Luego crear todas las aristas
-        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, Fact> entry : edges.entrySet()) {
             Object source = vertexMap.get(entry.getKey());
-            for (Fact fact : entry.getValue()) {
-                Object target = vertexMap.get(fact);
-                graph.insertEdge(parent, null, "", source, target, "edgeStyle=orthogonalEdgeStyle");
-            }
+            Object target = vertexMap.get(entry.getValue());
+            graph.insertEdge(parent, null, "", source, target, "edgeStyle=orthogonalEdgeStyle");
         }
     }
 
@@ -115,8 +106,7 @@ public class Tree extends JFrame {
         return new Dimension(width, height);
     }
 
-    // Modificar el método estático para aceptar la nueva estructura
-    public static void visualizeInferenceTree(Map<KnowledgePiece, Set<Fact>> edges) {
+    public static void visualizeInferenceTree(Map<KnowledgePiece, Fact> edges) {
         Tree visualizer = new Tree(edges);
         visualizer.setVisible(true);
     }
