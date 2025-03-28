@@ -11,7 +11,7 @@ import net.objecthunter.exp4j.ExpressionBuilder;
 
 public class InferenceEngine {
     
-    private final Map<KnowledgePiece, Fact> edges;
+    private final Map<KnowledgePiece, Set<Fact>> edges;
     private final Set<Fact> facts;
     private final Set<Rule> rules;
     private final String[][] functions;
@@ -24,7 +24,7 @@ public class InferenceEngine {
     }
     
     // Inferencias
-    public Map<KnowledgePiece,Fact> buildTree() {
+    public Map<KnowledgePiece, Set<Fact>> buildTree() {
         
         Set<Fact> potentialFacts = new HashSet<>();
         boolean anyNewFact;
@@ -33,7 +33,6 @@ public class InferenceEngine {
         String argument;
         
         do {
-            
             anyNewFact = false; // Indica si se modifico el grafo y hay que repetir el ciclo
             
             for (Rule rule : rules) { // Ciclo de reglas
@@ -42,35 +41,24 @@ public class InferenceEngine {
                 bodyPartsVerified = 0;
 
                 for (String bodypart : rule.getBody()) { // Ciclo del cuerpo de cada una de las reglas
-                    
                     argument = null;
                     
                     for (Fact fact : facts) { // Ciclo de hechos                       
-
                         if ( bodypart.equals(fact.getName()) && argument == null ) {    
-                            
                             argument = fact.getArgument();
-                            
                             // Nuevo hecho
                             newFact = new Fact(rule.getHead(), fact.getArgument(), null);
-                            
                             // Se cuenta el hecho dentro de los antecedentes de la regla
                             potentialFacts.add(fact);
                             bodyPartsVerified++;
-                            
                         } else if (bodypart.equals(fact.getName()) && fact.getArgument().equals(argument)) {
-                            
                             // Nuevo hecho
                             newFact = new Fact(rule.getHead(), fact.getArgument(), null);
-                            
                             // Se cuenta el hecho dentro de los antecedentes de la regla
                             potentialFacts.add(fact);
                             bodyPartsVerified++;
-                            
                         }
-
                     }
-
                 }
                 
                 if ( bodyPartsVerified == rule.getBody().size() 
@@ -88,9 +76,7 @@ public class InferenceEngine {
                     anyNewFact = true; // Indica que hay que repetir el ciclo
 
                 }
-                
             }
-            
         } while (anyNewFact);
         
         conflict(); // Se resulven los conflictos entre hechos
@@ -100,16 +86,25 @@ public class InferenceEngine {
     
     // Añade un hecho nuevo
     private void addFact (Set<Fact> potentialFacts, Fact newFact, Rule rule) {
-         
+        // Calcular los valores las etiquetas del nuevo hecho 
         newFact.setAttributes( support (potentialFacts, rule) );
         
-        facts.add(newFact); // añade el nuevo hecho a la lista de hechos
-        edges.put(rule, newFact); // arista regla -> nuevo hecho
+        // Añadir el nuevo hecho a la lista de hechos
+        facts.add(newFact); 
         
-        for (Fact potentialFact : potentialFacts) {
-            edges.put(potentialFact, newFact); // arista hecho -> nuevo hecho
+        // Añadir la arista desde la regla al nuevo hecho
+        if (!edges.containsKey(rule)) {
+            edges.put(rule, new HashSet<>());
         }
+        edges.get(rule).add(newFact);
         
+        // Añadir aristas desde los hechos que permitieron inferir el nuevo hecho
+        for (Fact potentialFact : potentialFacts) {
+            if (!edges.containsKey(potentialFact)) {
+                edges.put(potentialFact, new HashSet<>());
+            }
+            edges.get(potentialFact).add(newFact);
+        }
     }
     
     // Calcula el valor para los atributos de un nuevo hecho inferido
@@ -166,156 +161,158 @@ public class InferenceEngine {
     
     // Determina si un hecho ya fue inferido a partir de una regla
     private boolean alreadyExists (Fact newFact, Rule rule) {
-        
         boolean existsRule = false;
 
-        for ( Map.Entry<KnowledgePiece, Fact> edge : edges.entrySet() ) {
-            if ( equalFacts(edge.getValue(), newFact) 
-                    && edge.getKey() == rule ) {
-                
-                existsRule = true;
-            
+        for ( Map.Entry<KnowledgePiece, Set<Fact>> edge : edges.entrySet() ) {
+            for (Fact fact : edge.getValue()) {
+                if ( equalFacts(fact, newFact) 
+                        && edge.getKey() == rule ) {
+
+                    existsRule = true;
+                }
             }
-            
         }
         
         return existsRule;
-        
     }
     
     // Determina si existe agregacion cada vez que se infiere un nuevo hecho
-    private boolean anyAggregation (Fact newFact) {
-        
+    private boolean anyAggregation(Fact newFact) {
         boolean aggregation = false;
-        
-        for (Map.Entry<KnowledgePiece, Fact> edge : edges.entrySet()) {
-            
-            if ( edge.getClass() == newFact.getClass() 
-                    && equalFacts( (Fact) edge.getKey(), newFact ) ) {
-                
+
+        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+            KnowledgePiece key = entry.getKey();
+
+            if (key instanceof Fact && equalFacts((Fact) key, newFact)) {
                 aggregation = true;
-                
-            } else if ( equalFacts( edge.getValue(), newFact ) ) {
-                
-                aggregation = true;
-                
+                break;
             }
-            
+
+            for (Fact fact : entry.getValue()) {
+                if (equalFacts(fact, newFact)) {
+                    aggregation = true;
+                    break;
+                }
+            }
+
+            if (aggregation) {
+                break;
+            }
         }
-        
-        return aggregation;        
+
+        return aggregation;
     }
 
     // Realiza la agregación entre hechos, vuelve a construir el arbol
     private void doAggregation(Set<Fact> potentialFacts, Fact newFact, Rule rule) {
-
         Fact auxFact = null;
-        
+
         for (Fact fact : facts) {
-            if ( equalFacts(fact, newFact) ) {
+            if (equalFacts(fact, newFact)) {
                 auxFact = fact; // Se encuentra el hecho igual en la lista
+                break;
             }
         }
-        
+
         if (auxFact != null) {
-            
             facts.remove(auxFact); // Se remueve el hecho igual de la lista hechos
-        
         } else {
-            
             auxFact = combineFacts(newFact);
-        } 
-        
-        newFact.setAttributes( support (potentialFacts, rule) ); // Calcular los valores de la inferencia 
-        edges.put(rule, newFact); // arista regla -> nuevo hecho
-        
-        for (Fact potentialFact : potentialFacts) {
-            edges.put(potentialFact, newFact); // arista hecho -> nuevo hecho
         }
-        
+
+        newFact.setAttributes(support(potentialFacts, rule)); // Calcular los valores de la inferencia
+
+        // Añadir la arista desde la regla al nuevo hecho
+        if (!edges.containsKey(rule)) {
+            edges.put(rule, new HashSet<>());
+        }
+        edges.get(rule).add(newFact);
+        // Añadir aristas desde los hechos que permitieron inferir el nuevo hecho
+        for (Fact potentialFact : potentialFacts) {
+            if (!edges.containsKey(potentialFact)) {
+                edges.put(potentialFact, new HashSet<>());
+            }
+            edges.get(potentialFact).add(newFact);
+        }
+
         Fact aggregatedFact = new Fact(newFact.getName(), newFact.getArgument(), calculateAggregation(newFact, auxFact)); // Se calcula el hecho agregado
         facts.add(aggregatedFact); // Se agrega el nuevo hecho a la lista
-        
-        reBuilTree(aggregatedFact); // Recontruir el arbol para el nuevo hecho
-        
+
+        reBuilTree(aggregatedFact); // Reconstruir el árbol para el nuevo hecho
     }
     
     // Crea un nuevo hecho agregado a partir de hechos iguales en el grafo
     private Fact combineFacts (Fact newFact) {
-        
         Set<Fact> aggregatedFacts = new HashSet<>();
             
-        for (Map.Entry<KnowledgePiece, Fact> edge : edges.entrySet()) { // Se buscan los hechos iguales el nuevo hecho que no estan en la lista
-
+        for (Map.Entry<KnowledgePiece, Set<Fact>> edge : edges.entrySet()) { // Se buscan los hechos iguales el nuevo hecho que no estan en la lista
             if (edge.getKey().getClass() == Fact.class
                     && equalFacts( (Fact) edge.getKey(), newFact) ) {
 
                 aggregatedFacts.add((Fact) edge.getKey());
 
-            } else if (equalFacts( edge.getValue(), newFact)) {
-                
-                aggregatedFacts.add( edge.getValue() );
-                
             }
+            
+            for (Fact piece : edge.getValue()) {
+                if ( equalFacts(piece, newFact) ) {
 
+                    aggregatedFacts.add( piece );
+                }
+            }
         }
         
-        Fact aux = new Fact(newFact.getName(), newFact.getArgument(), calculateAggregation(aggregatedFacts) ); // Se combina los hechos encontrados en un unico hecho agregado
+        // Se combina los hechos encontrados en un unico hecho agregado
+        return new Fact(newFact.getName(), newFact.getArgument(), calculateAggregation(aggregatedFacts) );
+    }
         
-        return aux;
+    // Reconstruye el grafo cada vez que se identifica una nueva agregacion
+    private void reBuilTree (Fact newFact) {
+        Set<KnowledgePiece> newEdges = new HashSet<>(); // Nodos origen de las nuevas aristas hacia el nodo agregado
+        Set<KnowledgePiece> removableEdges = new HashSet<>(); // Aristas que se eliminaran
+        // Se recorre el grafo buscando hechos iguales
+        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+            // Se buscan las aristas que se originen en los nodos agregados
+            if ( entry.getKey() instanceof Fact && equalFacts( (Fact) entry.getKey(), newFact ) ) {
+                newEdges.add(entry.getKey()); // Marcar los nodos agregados para las nuevas aristas
+                eraseUpperNodes(entry.getValue()); // Eliminar los nodos superiores la nueva agregacion
+            } else {
+                for ( Fact fact : entry.getValue() ) {
+                    if ( equalFacts(fact, newFact) ) {
+                        newEdges.add(fact);
+                        removableEdges.add(fact);
+                    }
+                }
+            }
+        }
+        // Se eliminan las aristas
+        for (KnowledgePiece removableEdge : removableEdges) {
+            edges.remove(removableEdge);
+        }
+        // Se agregan aristas desde los nodos agregados hacia el nuevo nodo
+        
+        for (KnowledgePiece edge : newEdges) {
+            if (!edges.containsKey(edge)) {
+                edges.put(edge, new HashSet<>());
+            }
+            edges.get(edge).add(newFact);
+        }
         
     }
     
-    // Reconstruye el grafo cada vez que se identifica una nueva agregacion
-    private void reBuilTree (Fact newFact) {
-        
+    // Eliminar los nodos superiores dado un conjunto de nodos
+    public void eraseUpperNodes (Set<Fact> values) {
         Set<KnowledgePiece> removableEdges = new HashSet<>(); // Aristas que se eliminaran
-        Set<KnowledgePiece> newEdges = new HashSet<>(); // Nodos origen de las nuevas aristas hacia el nodo agregado
-        KnowledgePiece key;
         
-        for (Map.Entry<KnowledgePiece, Fact> entry : edges.entrySet()) {
-            
-            if ( entry.getKey().getClass() == Fact.class
-                    && equalFacts( (Fact) entry.getKey(), newFact ) ) { // Se buscan las aristas que se originen en los nodos agregados
-                
-                key = entry.getKey();
-                
-                newEdges.add(key); // Se agregan aristas desde los nodos agregados hacia el nuevo nodo
-                
-                while ( key != null && edges.containsKey(key) ) { // Se recorre el arbol hacia arriba desde los nodos agregados
-
-                    Fact aux = edges.get(key);
-                    
-                    for (Map.Entry<KnowledgePiece, Fact> entry2 : edges.entrySet()) {
-                        if (entry2.getValue() == aux) {
-                            removableEdges.add(entry2.getKey()); // Se quitan las aristas que llegan hacia los nodos que se eliminan
-                        }
-                    }
-                    
-                    removableEdges.add(aux);
-                    facts.remove(aux); // Se eliminan los hechos superiores a la agregacion de la lista
-                    removableEdges.add(key); // Se eliminan las aristas superiores a la agregacion
-                    key = aux;
-                    
-                }
-                
-            } else if (equalFacts( entry.getValue(), newFact ) ) {
-                
-                key = entry.getValue();
-                newEdges.add(key); // Se agregan aristas desde los nodos agregados hacia el nuevo nodo
-                
+        if (values != null) {
+            for (Fact value : values) {
+                eraseUpperNodes(edges.get(value));
+                removableEdges.add(value); // Se marcan las aristas superiores para eliminarlas
             }
-
         }
-        
-        for (KnowledgePiece edge : removableEdges) {
-            edges.remove(edge);
+        // Se eliminan las aristas
+        for (KnowledgePiece removableEdge : removableEdges) {
+            edges.remove(removableEdge);
         }
-        
-        for (KnowledgePiece edge : newEdges) {
-            edges.put(edge, newFact);
-        }
-        
     }
     
     // Calcular los valores de los atributos cuando hay agregacion
@@ -393,36 +390,40 @@ public class InferenceEngine {
     }
     
     // Trata conflictos entre hechos que se contradicen
-    private void conflict () {
-        
+    private void conflict() {
         Set<Fact> negativeFacts = new HashSet<>();
-        
-        // Capturar todos los hechos con una negacion
-        for ( Fact fact : facts ) {
+
+        // Capturar todos los hechos con una negación
+        for (Fact fact : facts) {
             if (fact.getName().contains("~")) {
-                negativeFacts.add(fact); // Añade a la lista los hechos con negaciones
+                negativeFacts.add(fact);
             }
         }
-        
-        // Recorrer todos los hechos con una negacion
+
+        // Recorrer todos los hechos con una negación
         for (Fact nf : negativeFacts) {
             // Recorrer todos los hechos y compararlos con los hechos negados
-            for ( Fact fact : facts ) {
+            for (Fact fact : facts) {
                 if (nf.getName().replace("~", "").equals(fact.getName()) &&
-                    nf.getArgument().equals(fact.getArgument())) { // Se identifican hechos que entran en conflicto
-                    
-                    // Se crean los hechos resultantes de el conflicto (El hecho derrotado y el debilidado)
-                    Fact newFact1 = new Fact(nf.getName(), nf.getArgument(), calculateAttack(nf, fact)); 
+                    nf.getArgument().equals(fact.getArgument())) {
+
+                    // Se crean los hechos resultantes del conflicto
+                    Fact newFact1 = new Fact(nf.getName(), nf.getArgument(), calculateAttack(nf, fact));
                     Fact newFact2 = new Fact(fact.getName(), fact.getArgument(), calculateAttack(fact, nf));
-                    
-                    // Se añaden las aristas desde los hechos en conflicto hacia los hechos resultantes del ataque
-                    edges.put(nf, newFact1);
-                    edges.put(fact, newFact2);
-                    
+
+                    // Se añaden las aristas desde los hechos en conflicto hacia los hechos resultantes
+                    if (!edges.containsKey(nf)) {
+                        edges.put(nf, new HashSet<>());
+                    }
+                    edges.get(nf).add(newFact1);
+
+                    if (!edges.containsKey(fact)) {
+                        edges.put(fact, new HashSet<>());
+                    }
+                    edges.get(fact).add(newFact2);
                 }
             }
         }
-    
     }
     
     // Calcular valores de los atributos para los hechos en conflicto

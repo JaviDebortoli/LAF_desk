@@ -86,34 +86,33 @@ public class Program extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void nextButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nextButtonActionPerformed
-        
         // Limpiar hechos y reglas
         facts.clear();
         rules.clear();
-        
+
         String program = programTextArea.getText();
         String[] lines = program.split("\n");   
-        
+
         for (String line : lines) {
-            
+
             line = line.trim();
-            
+
             if (line.isEmpty()) continue;
-            
+
             if (line.contains(":-")) {
                 processRule(line);
             } else {
                 processFact(line);
             }
-            
+
         }
-        
+
         setFunctions();
-        
+
         InferenceEngine laf = new InferenceEngine(facts, rules, functions);
-        
+
+        // Ahora buildTree() retorna Map<KnowledgePiece, Set<Fact>> en lugar de Map<KnowledgePiece, Fact>
         Tree.visualizeInferenceTree(laf.buildTree());
-        
     }//GEN-LAST:event_nextButtonActionPerformed
     
     // Procesar las reglas
