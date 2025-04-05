@@ -10,8 +10,8 @@ import java.awt.Graphics;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class Tree extends JFrame {
     private final mxGraph graph;
@@ -21,7 +21,7 @@ public class Tree extends JFrame {
     private static final Font NODE_FONT = new Font("Arial", Font.PLAIN, 12);
 
     // Modificar el constructor para aceptar la nueva estructura de datos
-    public Tree(Map<KnowledgePiece, Set<Fact>> edges) {
+    public Tree(Map<KnowledgePiece, List<Fact>> edges) {
         super("Árbol de Inferencias");
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -55,9 +55,9 @@ public class Tree extends JFrame {
     }
 
     // Modificar el método createGraph para trabajar con la nueva estructura
-    private void createGraph(Map<KnowledgePiece, Set<Fact>> edges) {
+    private void createGraph(Map<KnowledgePiece, List<Fact>> edges) {
         // Crear primero todos los vértices
-        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
             createVertex(entry.getKey());
             for (Fact fact : entry.getValue()) {
                 createVertex(fact);
@@ -65,7 +65,7 @@ public class Tree extends JFrame {
         }
 
         // Luego crear todas las aristas
-        for (Map.Entry<KnowledgePiece, Set<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
             Object source = vertexMap.get(entry.getKey());
             for (Fact fact : entry.getValue()) {
                 Object target = vertexMap.get(fact);
@@ -116,7 +116,7 @@ public class Tree extends JFrame {
     }
 
     // Modificar el método estático para aceptar la nueva estructura
-    public static void visualizeInferenceTree(Map<KnowledgePiece, Set<Fact>> edges) {
+    public static void visualizeInferenceTree(Map<KnowledgePiece, List<Fact>> edges) {
         Tree visualizer = new Tree(edges);
         visualizer.setVisible(true);
     }

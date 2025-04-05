@@ -4,19 +4,18 @@ import KnowledgePieces.Rule;
 import KnowledgePieces.Fact;
 import Main.InferenceEngine;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
 public class Program extends javax.swing.JFrame {
 
-    private final Set<Fact> facts;
-    private final Set<Rule> rules;
+    private final List<Fact> facts;
+    private final List<Rule> rules;
     String[][] functions;
     
     public Program() {
         
-        facts = new HashSet<>();
-        rules = new HashSet<>();
+        facts = new ArrayList<>();
+        rules = new ArrayList<>();
         initComponents();
         
     }
@@ -110,8 +109,6 @@ public class Program extends javax.swing.JFrame {
         setFunctions();
 
         InferenceEngine laf = new InferenceEngine(facts, rules, functions);
-
-        // Ahora buildTree() retorna Map<KnowledgePiece, Set<Fact>> en lugar de Map<KnowledgePiece, Fact>
         Tree.visualizeInferenceTree(laf.buildTree());
     }//GEN-LAST:event_nextButtonActionPerformed
     
@@ -210,7 +207,7 @@ public class Program extends javax.swing.JFrame {
     // Procesar las funciones
     private void setFunctions() {
         
-        int attributes = facts.iterator().next().getAttributes().length;
+        int attributes = facts.getFirst().getAttributes().length;
 
         FunctionInputDialog dialog = new FunctionInputDialog(this, attributes);
         dialog.setVisible(true);
