@@ -1,10 +1,12 @@
-package Main;
+package InferenceEngine;
 
 import KnowledgePieces.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
@@ -15,12 +17,14 @@ public class InferenceEngine {
     private final List<Fact> facts;
     private final List<Rule> rules;
     private final String[][] functions;
-
+    private final List<KnowledgePiece> removableEdges;
+    
     public InferenceEngine(List<Fact> facts, List<Rule> rules, String[][] functions) {
         this.edges = new HashMap<>();
         this.facts = facts;
         this.rules = rules;
         this.functions = functions;
+        this.removableEdges = new ArrayList<>();
     }
     
     // Inferencias
@@ -81,7 +85,7 @@ public class InferenceEngine {
             }
         } while (anyNewFact);
         
-        //conflict(); // Se resulven los conflictos entre hechos
+        conflict(); // Se resulven los conflictos entre hechos
         
         return edges;
     }
@@ -166,8 +170,6 @@ public class InferenceEngine {
             for (Fact fact : edge.getValue()) {
                 if ( equalFacts(fact, newFact) && edge.getKey() == rule ) {
                     existsRule = true;
-                    
-                    System.out.println("YA EXISTE "+rule+" --> "+newFact);
                 }
             }
         }
@@ -270,40 +272,35 @@ public class InferenceEngine {
         
     // Reconstruye el grafo cada vez que se identifica una nueva agregacion
     private void reBuilTree (Fact newFact) {
-        
         System.out.println("ReBuild");
+
+        //Limpiar la lista de hechos a remover
+        removableEdges.clear();
         
-        List<KnowledgePiece> newEdges = new ArrayList<>(); // Nodos origen de las nuevas aristas hacia el nodo agregado
-        List<KnowledgePiece> removableEdges = new ArrayList<>(); // Aristas que se eliminaran
+        Set<KnowledgePiece> newEdges = new HashSet<>(); // Nodos origen de las nuevas aristas hacia el nodo agregado
         // Se recorre el grafo buscando hechos iguales
         for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
             // Se buscan las aristas que se originen en los nodos agregados
             if ( entry.getKey() instanceof Fact && equalFacts( (Fact) entry.getKey(), newFact ) ) {
-                if ( !newEdges.contains(entry.getKey()) ) {
-                    newEdges.add(entry.getKey());
-                }
+                
+                newEdges.add(entry.getKey());
+                removableEdges.add( (Fact) entry.getKey() );
+                
                 // Eliminar los nodos superiores la nueva agregacion
-                removableEdges.addAll( eraseUpperNodes(entry.getValue()) );
+                eraseUpperNodes( entry.getValue() );
             } else {
-                for ( Fact fact : entry.getValue() ) {
+                for (Fact fact : entry.getValue()) {
                     if ( equalFacts(fact, newFact) ) {
-                        if ( !newEdges.contains(fact) ) {
-                            newEdges.add(fact);
-                        }
-                        
-                        removableEdges.add(fact);
+                        newEdges.add(fact);
                     }
                 }
             }
         }
         // Se eliminan las aristas
         for (KnowledgePiece removableEdge : removableEdges) {
-            if (edges.containsKey(removableEdge)) {
-                System.out.println("Se elimina: "+removableEdge+" --> "+edges.get(removableEdge));
+            System.out.println("Se elimina: "+removableEdge+" --> "+edges.get(removableEdge));
             
-                edges.remove(removableEdge);
-            }
-            
+            edges.remove(removableEdge);
         }
         // Se agregan aristas desde los nodos agregados hacia el nuevo nodo
         for (KnowledgePiece edge : newEdges) {
@@ -318,18 +315,23 @@ public class InferenceEngine {
     }
     
     // Eliminar los nodos superiores dado un conjunto de nodos
-    public List<KnowledgePiece> eraseUpperNodes (List<Fact> values) {
-        List<KnowledgePiece> removableEdges = new ArrayList<>(); // Aristas que se eliminaran
-        
-        if (values != null) {
-            for (Fact value : values) {
+    public void eraseUpperNodes (List<Fact> values) {        
+        for (Fact value : values) {
+            // Eliminar nodos superiores recursivamente
+            if (edges.containsKey(value)) {
                 eraseUpperNodes(edges.get(value));
-                removableEdges.add(value); // Se marcan las aristas superiores para eliminarlas
-                return removableEdges;
+            }
+            // Eliminacion del nodo
+            removableEdges.add(value); 
+            // Eliminar aristas que tengan como destino el nodo eliminado
+            for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
+                for (Fact fact : entry.getValue()) {
+                    if ( fact == value ) {
+                        removableEdges.add(entry.getKey()); 
+                    }
+                }
             }
         } 
-        
-        return removableEdges;
     }
     
     // Calcular los valores de los atributos cuando hay agregacion

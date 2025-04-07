@@ -2,7 +2,7 @@ package Views;
 
 import KnowledgePieces.Rule;
 import KnowledgePieces.Fact;
-import Main.InferenceEngine;
+import InferenceEngine.InferenceEngine;
 import java.util.ArrayList;
 import java.util.List;
 
