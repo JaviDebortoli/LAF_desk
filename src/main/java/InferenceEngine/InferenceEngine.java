@@ -34,58 +34,61 @@ public class InferenceEngine {
         boolean anyNewFact;
         Fact newFact = null;
         int bodyPartsVerified;
-        String argument;
+        List<String> arguments = new ArrayList<>();
+        
+        // Se obtienen todos los argumentos diferentes de los hechos
+        for (Fact fact : facts) {
+            if (!arguments.contains(fact.getArgument())) {
+                arguments.add(fact.getArgument());
+            }
+        }
         
         do {
             anyNewFact = false; // Indica si se modifico el grafo y hay que repetir el ciclo
             
             System.out.println("\n\n---- ITERACION ----");
             
-            for (Rule rule : rules) { // Ciclo de reglas
-                
-                potentialFacts.clear();
-                bodyPartsVerified = 0;
+            for (String argument : arguments) {
+                for (Rule rule : rules) { // Ciclo de reglas
 
-                for (String bodypart : rule.getBody()) { // Ciclo del cuerpo de cada regla
-                    argument = null;
-                    
-                    for (Fact fact : facts) { // Ciclo de hechos                       
-                        if ( bodypart.equals(fact.getName()) && argument == null ) {    
-                            argument = fact.getArgument();
-                            // Nuevo hecho
-                            newFact = new Fact(rule.getHead(), fact.getArgument(), null);
-                            // Se cuenta el hecho dentro de los antecedentes de la regla
-                            potentialFacts.add(fact);
-                            bodyPartsVerified++;
-                        } else if (bodypart.equals(fact.getName()) && fact.getArgument().equals(argument)) {
-                            // Nuevo hecho
-                            newFact = new Fact(rule.getHead(), fact.getArgument(), null);
-                            // Se cuenta el hecho dentro de los antecedentes de la regla
-                            potentialFacts.add(fact);
-                            bodyPartsVerified++;
+                    potentialFacts.clear();
+                    bodyPartsVerified = 0;
+
+                    for (String bodypart : rule.getBody()) { // Ciclo del cuerpo de cada regla
+
+                        for (Fact fact : facts) { // Ciclo de hechos                       
+                            if ( bodypart.equals(fact.getName()) && fact.getArgument().equals(argument)) {    
+                                // Nuevo hecho
+                                newFact = new Fact(rule.getHead(), fact.getArgument(), null);
+                                // Se cuenta el hecho dentro de los antecedentes de la regla
+                                potentialFacts.add(fact);
+                                bodyPartsVerified++;
+                            }
                         }
                     }
-                }
-                
-                if ( bodyPartsVerified == rule.getBody().size() 
-                        && !alreadyExists(newFact, rule) 
-                        && !anyAggregation(newFact) ) {
-                    
-                    addFact(potentialFacts, newFact, rule); // Añade un nuevo hecho 
-                    anyNewFact = true; // Indica que hay que repetir el ciclo
-                    
-                } else if ( bodyPartsVerified == rule.getBody().size() 
-                        && !alreadyExists(newFact, rule) 
-                        && anyAggregation(newFact) ){
-                    
-                    doAggregation(potentialFacts, newFact, rule); // Añade un hecho con agregación 
-                    anyNewFact = true; // Indica que hay que repetir el ciclo
 
+                    if ( bodyPartsVerified == rule.getBody().size() 
+                            && !alreadyExists(newFact, rule) 
+                            && !anyAggregation(newFact) ) {
+
+                        addFact(potentialFacts, newFact, rule); // Añade un nuevo hecho 
+                        anyNewFact = true; // Indica que hay que repetir el ciclo
+
+                    } else if ( bodyPartsVerified == rule.getBody().size() 
+                            && !alreadyExists(newFact, rule) 
+                            && anyAggregation(newFact) ){
+
+                        doAggregation(potentialFacts, newFact, rule); // Añade un hecho con agregación 
+                        anyNewFact = true; // Indica que hay que repetir el ciclo
+
+                    }
                 }
             }
+            
+            
         } while (anyNewFact);
         
-        conflict(); // Se resulven los conflictos entre hechos
+        // conflict(); // Se resulven los conflictos entre hechos
         
         return edges;
     }
