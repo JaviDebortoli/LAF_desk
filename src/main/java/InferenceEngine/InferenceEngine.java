@@ -10,7 +10,6 @@ import java.util.Set;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
-
 public class InferenceEngine {
     
     private final Map<KnowledgePiece, List<Fact>> edges;
@@ -45,18 +44,16 @@ public class InferenceEngine {
         
         do {
             anyNewFact = false; // Indica si se modifico el grafo y hay que repetir el ciclo
-            
-            System.out.println("\n\n---- ITERACION ----");
-            
-            for (String argument : arguments) {
+
+            for (String argument : arguments) { // Ciclo de argumentos
                 for (Rule rule : rules) { // Ciclo de reglas
 
                     potentialFacts.clear();
                     bodyPartsVerified = 0;
 
                     for (String bodypart : rule.getBody()) { // Ciclo del cuerpo de cada regla
-
                         for (Fact fact : facts) { // Ciclo de hechos                       
+                            
                             if ( bodypart.equals(fact.getName()) && fact.getArgument().equals(argument)) {    
                                 // Nuevo hecho
                                 newFact = new Fact(rule.getHead(), fact.getArgument(), null);
@@ -64,6 +61,7 @@ public class InferenceEngine {
                                 potentialFacts.add(fact);
                                 bodyPartsVerified++;
                             }
+                            
                         }
                     }
 
@@ -73,14 +71,12 @@ public class InferenceEngine {
 
                         addFact(potentialFacts, newFact, rule); // Añade un nuevo hecho 
                         anyNewFact = true; // Indica que hay que repetir el ciclo
-
                     } else if ( bodyPartsVerified == rule.getBody().size() 
                             && !alreadyExists(newFact, rule) 
                             && anyAggregation(newFact) ){
 
                         doAggregation(potentialFacts, newFact, rule); // Añade un hecho con agregación 
                         anyNewFact = true; // Indica que hay que repetir el ciclo
-
                     }
                 }
             }
@@ -88,13 +84,14 @@ public class InferenceEngine {
             
         } while (anyNewFact);
         
-        // conflict(); // Se resulven los conflictos entre hechos
+        conflict(); // Se resulven los conflictos entre hechos
         
         return edges;
     }
     
     // Añade un hecho nuevo
     private void addFact (List<Fact> potentialFacts, Fact newFact, Rule rule) {
+        
         // Calcular los valores las etiquetas del nuevo hecho 
         newFact.setAttributes( support (potentialFacts, rule) );
         
@@ -106,18 +103,13 @@ public class InferenceEngine {
             edges.put(rule, new ArrayList<>());
         }
         edges.get(rule).add(newFact);
-        
-        System.out.println("\nNueva arista: "+rule+" --> "+newFact);
-        
+
         // Añadir aristas desde los hechos que permitieron inferir el nuevo hecho
         for (Fact potentialFact : potentialFacts) {
             if (!edges.containsKey(potentialFact)) {
                 edges.put(potentialFact, new ArrayList<>());
             }
             edges.get(potentialFact).add(newFact);
-            
-            System.out.println("Nueva arista: "+potentialFact+" --> "+newFact);
-            
         }
     }
     
@@ -209,9 +201,6 @@ public class InferenceEngine {
 
     // Realiza la agregación entre hechos, vuelve a construir el arbol
     private void doAggregation(List<Fact> potentialFacts, Fact newFact, Rule rule) {
-        
-        System.out.println("\nAgregacion de "+newFact.getName());
-        
         Fact auxFact = null;
 
         for (Fact fact : facts) {
@@ -233,18 +222,13 @@ public class InferenceEngine {
             edges.put(rule, new ArrayList<>());
         }
         edges.get(rule).add(newFact);
-        
-        System.out.println("Nueva arista: "+rule+" --> "+newFact);
-        
+
         // Añadir aristas desde los hechos que permitieron inferir el nuevo hecho
         for (Fact potentialFact : potentialFacts) {
             if (!edges.containsKey(potentialFact)) {
                 edges.put(potentialFact, new ArrayList<>());
             }
             edges.get(potentialFact).add(newFact);
-            
-            System.out.println("Nueva arista: "+potentialFact+" --> "+newFact);
-            
         }
 
         Fact aggregatedFact = new Fact(newFact.getName(), newFact.getArgument(), calculateAggregation(newFact, auxFact)); // Se calcula el hecho agregado
@@ -275,8 +259,6 @@ public class InferenceEngine {
         
     // Reconstruye el grafo cada vez que se identifica una nueva agregacion
     private void reBuilTree (Fact newFact) {
-        System.out.println("ReBuild");
-
         //Limpiar la lista de hechos a remover
         removableEdges.clear();
         
@@ -301,8 +283,6 @@ public class InferenceEngine {
         }
         // Se eliminan las aristas
         for (KnowledgePiece removableEdge : removableEdges) {
-            System.out.println("Se elimina: "+removableEdge+" --> "+edges.get(removableEdge));
-            
             edges.remove(removableEdge);
         }
         // Se agregan aristas desde los nodos agregados hacia el nuevo nodo
@@ -311,9 +291,6 @@ public class InferenceEngine {
                 edges.put(edge, new ArrayList<>());
             }
             edges.get(edge).add(newFact);
-
-            System.out.println("Nueva arista: "+edge+" --> "+newFact);    
-        
         }
     }
     
@@ -339,7 +316,6 @@ public class InferenceEngine {
     
     // Calcular los valores de los atributos cuando hay agregacion
     private Double[] calculateAggregation(Fact newFact, Fact removableFact) {
-        
         Double[] atributtes = new Double[ newFact.getAttributes().length ];
         Expression expression;
         
@@ -367,12 +343,10 @@ public class InferenceEngine {
         }
         
         return atributtes;
-        
     }
 
     // Calcular los valores de los atributos cuando hay agregacion en hechos que no estan en la lista
     private Double[] calculateAggregation(List<Fact> aggregatedFacts) {
-        
         Double[] atributtes = new Double[ aggregatedFacts.getFirst().getAttributes().length ];
         Expression expression;
         
@@ -407,7 +381,6 @@ public class InferenceEngine {
         }
         
         return atributtes;
-        
     }
     
     // Trata conflictos entre hechos que se contradicen
@@ -449,7 +422,6 @@ public class InferenceEngine {
     
     // Calcular valores de los atributos para los hechos en conflicto
     private Double[] calculateAttack (Fact f1, Fact f2) {
-        
         Double[] attributtes = new Double[f1.getAttributes().length]; // Array vacio
         Expression expression;
         

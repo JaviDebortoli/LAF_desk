@@ -7,14 +7,14 @@
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>23</maven.compiler.release>
+        <maven.compiler.release>24</maven.compiler.release>
         <exec.mainClass>com.mycompany.laf_v2.LAF_v2</exec.mainClass>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-ext</artifactId>
-            <version>1.5.1</version>
+            <version>1.5.2</version>
         </dependency>
         <dependency>
             <groupId>net.objecthunter</groupId>
@@ -28,7 +28,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.14.0</version>
                 <configuration>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
