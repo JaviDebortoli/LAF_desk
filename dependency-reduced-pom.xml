@@ -4,12 +4,12 @@
   <groupId>Javi</groupId>
   <artifactId>LAF_desk</artifactId>
   <name>LAF_desk</name>
-  <version>0.7</version>
+  <version>0.8.1</version>
   <build>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
+        <version>3.14.0</version>
         <configuration>
           <compilerArgs>
             <arg>--enable-preview</arg>
@@ -42,7 +42,7 @@
     </plugins>
   </build>
   <properties>
-    <maven.compiler.release>23</maven.compiler.release>
+    <maven.compiler.release>24</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <exec.mainClass>com.mycompany.laf_v2.LAF_v2</exec.mainClass>
   </properties>
