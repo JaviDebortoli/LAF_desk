@@ -1,5 +1,7 @@
 package Views;
 
+import InferenceEngine.Graph;
+import InferenceEngine.Pair;
 import KnowledgePieces.*;
 import com.mxgraph.layout.hierarchical.mxHierarchicalLayout;
 import com.mxgraph.swing.mxGraphComponent;
@@ -17,11 +19,13 @@ import java.util.Set;
 import java.util.HashSet;
 
 public class Tree extends JFrame {
-    private final mxGraph graph;
+    private final mxGraph LAFGraph;
     private final Object parent;
     private final Map<KnowledgePiece, Object> vertexMap;
     private final Map<String, Object> dmpNodeMap; // Para mapear nodos dMP únicos
+    private final Map<String, Object> caNodeMap;  // Para mapear nodos CA únicos
     private int dmpCounter = 0; // Contador para crear IDs únicos de nodos dMP
+    private int caCounter = 0;  // Contador para crear IDs únicos de nodos CA
     
     private static final int PADDING = 4;
     private static final Font NODE_FONT = new Font("Arial", Font.PLAIN, 9);
@@ -31,45 +35,46 @@ public class Tree extends JFrame {
     private static final int HEADER_HEIGHT = 30;
     private static final int FIXED_NODE_HEIGHT = 55;
 
-    public Tree(Map<KnowledgePiece, List<Fact>> edges) {
+    public Tree(Graph graph) {
         super("Árbol de Inferencias");
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setTitle("LAF");
         
-        graph = new mxGraph();
-        parent = graph.getDefaultParent();
+        LAFGraph = new mxGraph();
+        parent = LAFGraph.getDefaultParent();
         vertexMap = new HashMap<>();
         dmpNodeMap = new HashMap<>();
+        caNodeMap = new HashMap<>();
         
         // Configurar el estilo predeterminado del grafo
-        graph.setCellsResizable(false);
-        graph.setAutoSizeCells(false);
-        graph.setHtmlLabels(true);
+        LAFGraph.setCellsResizable(false);
+        LAFGraph.setAutoSizeCells(false);
+        LAFGraph.setHtmlLabels(true);
         
-        graph.getModel().beginUpdate();
+        LAFGraph.getModel().beginUpdate();
         try {
-            createGraph(edges);
+            createGraph(graph);
             
-            mxHierarchicalLayout layout = new mxHierarchicalLayout(graph);
+            mxHierarchicalLayout layout = new mxHierarchicalLayout(LAFGraph);
             layout.setInterRankCellSpacing(70);
             layout.setInterHierarchySpacing(200);
             layout.setIntraCellSpacing(80);
             layout.execute(parent);
         } finally {
-            graph.getModel().endUpdate();
+            LAFGraph.getModel().endUpdate();
         }
 
-        mxGraphComponent graphComponent = new mxGraphComponent(graph);
+        mxGraphComponent graphComponent = new mxGraphComponent(LAFGraph);
         getContentPane().add(graphComponent);
         
         setSize(800, 600);
         setLocationRelativeTo(null);
     }
 
-    private void createGraph(Map<KnowledgePiece, List<Fact>> edges) {
+    private void createGraph(Graph graph) {
         // Crear primero todos los vértices de hechos y reglas
-        for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, List<Fact>> entry : graph.edges().entrySet()) {
             createVertex(entry.getKey());
             for (Fact fact : entry.getValue()) {
                 createVertex(fact);
@@ -78,20 +83,20 @@ public class Tree extends JFrame {
 
         // Identificar qué hechos son inferidos por reglas para evitar conexiones directas
         Set<Fact> factsInferredByRules = new HashSet<>();
-        for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, List<Fact>> entry : graph.edges().entrySet()) {
             if (entry.getKey() instanceof Rule) {
                 factsInferredByRules.addAll(entry.getValue());
             }
         }
 
         // Crear las conexiones con nodos dMP para inferencias por reglas
-        for (Map.Entry<KnowledgePiece, List<Fact>> entry : edges.entrySet()) {
+        for (Map.Entry<KnowledgePiece, List<Fact>> entry : graph.edges().entrySet()) {
             KnowledgePiece source = entry.getKey();
             List<Fact> targets = entry.getValue();
             
             if (source instanceof Rule && !targets.isEmpty()) {
                 // Es una regla que infiere hechos - usar nodo dMP
-                createRuleInferenceWithDMP((Rule) source, targets, edges);
+                createRuleInferenceWithDMP((Rule) source, targets, graph.edges());
             } else {
                 // Conexión directa solo para casos que NO sean hechos inferidos por reglas
                 Object sourceVertex = vertexMap.get(source);
@@ -99,12 +104,59 @@ public class Tree extends JFrame {
                     // Solo crear conexión directa si el target NO es inferido por una regla
                     if (!factsInferredByRules.contains(target)) {
                         Object targetVertex = vertexMap.get(target);
-                        graph.insertEdge(parent, null, "", sourceVertex, targetVertex, 
+                        LAFGraph.insertEdge(parent, null, "", sourceVertex, targetVertex, 
                             "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
                     }
                 }
             }
         }
+        
+        // NUEVA FUNCIONALIDAD: Crear nodos CA para hechos conflictivos
+        createConflictiveNodes(graph.conflictiveNodes());
+    }
+
+    /**
+     * NUEVO MÉTODO: Crea nodos CA para representar conflictos entre hechos
+     */
+    private void createConflictiveNodes(List<Pair> conflictiveNodes) {
+        for (Pair conflictivePair : conflictiveNodes) {
+            Fact firstFact = conflictivePair.first();
+            Fact secondFact = conflictivePair.second();
+            
+            // Crear un nodo CA único para este conflicto
+            String caId = "CA_" + (++caCounter);
+            Object caNode = createCANode(caId);
+            
+            // Obtener los vértices de los hechos conflictivos
+            Object firstFactVertex = vertexMap.get(firstFact);
+            Object secondFactVertex = vertexMap.get(secondFact);
+            
+            if (firstFactVertex != null && secondFactVertex != null) {
+                // Conectar ambos hechos al nodo CA con flechas bidireccionales
+                // Conectar primer hecho al nodo CA
+                LAFGraph.insertEdge(parent, null, "", firstFactVertex, caNode, 
+                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic");
+                
+                // Conectar segundo hecho al nodo CA
+                LAFGraph.insertEdge(parent, null, "", secondFactVertex, caNode, 
+                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic");
+            }
+        }
+    }
+
+    /**
+     * NUEVO MÉTODO: Crea un nodo CA (Conflictive Arguments)
+     */
+    private Object createCANode(String caId) {
+        // Crear un nodo romboidal para CA con color rojo para indicar conflicto
+        String style = "shape=rhombus;fillColor=#FFE6E6;strokeColor=#FF0000;strokeWidth=2;" +
+                      "fontSize=10;fontStyle=1;verticalAlign=middle;align=center;fontColor=#FF0000";
+        
+        Object caNode = LAFGraph.insertVertex(parent, null, "CA", 
+            0, 0, 50, 50, style);
+        
+        caNodeMap.put(caId, caNode);
+        return caNode;
     }
 
     private void createRuleInferenceWithDMP(Rule rule, List<Fact> inferredFacts, 
@@ -116,7 +168,7 @@ public class Tree extends JFrame {
             
             // Conectar la regla al nodo dMP
             Object ruleVertex = vertexMap.get(rule);
-            graph.insertEdge(parent, null, "", ruleVertex, dmpNode, 
+            LAFGraph.insertEdge(parent, null, "", ruleVertex, dmpNode, 
                 "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
             
             // Encontrar los hechos que activan esta regla y conectarlos al nodo dMP
@@ -125,14 +177,14 @@ public class Tree extends JFrame {
             for (Fact activatingFact : activatingFacts) {
                 Object factVertex = vertexMap.get(activatingFact);
                 if (factVertex != null) {
-                    graph.insertEdge(parent, null, "", factVertex, dmpNode, 
+                    LAFGraph.insertEdge(parent, null, "", factVertex, dmpNode, 
                         "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
                 }
             }
             
             // Conectar el nodo dMP al hecho inferido
             Object inferredFactVertex = vertexMap.get(inferredFact);
-            graph.insertEdge(parent, null, "", dmpNode, inferredFactVertex, 
+            LAFGraph.insertEdge(parent, null, "", dmpNode, inferredFactVertex, 
                 "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
         }
     }
@@ -142,7 +194,7 @@ public class Tree extends JFrame {
         String style = "shape=ellipse;fillColor=#FFFFFF;strokeColor=#333333;strokeWidth=2;" +
                       "fontSize=10;fontStyle=1;verticalAlign=middle;align=center";
         
-        Object dmpNode = graph.insertVertex(parent, null, "dMP", 
+        Object dmpNode = LAFGraph.insertVertex(parent, null, "dMP", 
             0, 0, 60, 40, style);
         
         dmpNodeMap.put(dmpId, dmpNode);
@@ -292,7 +344,7 @@ public class Tree extends JFrame {
             // Nodo transparente sin borde para que solo se vea la tabla HTML
             String style = "shape=rectangle;fillColor=none;strokeColor=none;fontSize=10;verticalAlign=top";
             
-            Object vertex = graph.insertVertex(parent, null, htmlLabel, 
+            Object vertex = LAFGraph.insertVertex(parent, null, htmlLabel, 
                 0, 0, nodeSize.width, nodeSize.height, style);
             vertexMap.put(piece, vertex);
         }
@@ -437,8 +489,8 @@ public class Tree extends JFrame {
         return new Dimension(width, height);
     }
 
-    public static void visualizeInferenceTree(Map<KnowledgePiece, List<Fact>> edges) {
-        Tree visualizer = new Tree(edges);
+    public static void visualizeInferenceTree(Graph graph) {
+        Tree visualizer = new Tree(graph);
         visualizer.setVisible(true);
     }
 }

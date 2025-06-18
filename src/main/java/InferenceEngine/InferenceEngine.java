@@ -17,6 +17,7 @@ public class InferenceEngine {
     private final List<Rule> rules;
     private final String[][] functions;
     private final List<KnowledgePiece> removableEdges;
+    private final List<Pair> conflictiveNodes;
     
     public InferenceEngine(List<Fact> facts, List<Rule> rules, String[][] functions) {
         this.edges = new HashMap<>();
@@ -24,10 +25,11 @@ public class InferenceEngine {
         this.rules = rules;
         this.functions = functions;
         this.removableEdges = new ArrayList<>();
+        this.conflictiveNodes = new ArrayList<>();
     }
     
     // Inferencias
-    public Map<KnowledgePiece, List<Fact>> buildTree() {
+    public Graph buildTree() {
         
         List<Fact> potentialFacts = new ArrayList<>();
         boolean anyNewFact;
@@ -84,9 +86,9 @@ public class InferenceEngine {
             
         } while (anyNewFact);
         
-        conflict(); // Se resulven los conflictos entre hechos
+        conflict(); // Se resuelven los conflictos entre hechos
         
-        return edges;
+        return new Graph(edges, conflictiveNodes);
     }
     
     // Añade un hecho nuevo
@@ -400,21 +402,11 @@ public class InferenceEngine {
             for (Fact fact : facts) {
                 if (nf.getName().replace("~", "").equals(fact.getName()) &&
                     nf.getArgument().equals(fact.getArgument())) {
-
-                    // Se crean los hechos resultantes del conflicto
-                    Fact newFact1 = new Fact(nf.getName(), nf.getArgument(), calculateAttack(nf, fact));
-                    Fact newFact2 = new Fact(fact.getName(), fact.getArgument(), calculateAttack(fact, nf));
-
-                    // Se añaden las aristas desde los hechos en conflicto hacia los hechos resultantes
-                    if (!edges.containsKey(nf)) {
-                        edges.put(nf, new ArrayList<>());
-                    }
-                    edges.get(nf).add(newFact1);
-
-                    if (!edges.containsKey(fact)) {
-                        edges.put(fact, new ArrayList<>());
-                    }
-                    edges.get(fact).add(newFact2);
+                    
+                    nf.setDeltaAttributes(calculateAttack(nf, fact));
+                    fact.setDeltaAttributes(calculateAttack(fact, nf));
+                    
+                    conflictiveNodes.add(new Pair(nf, fact));
                 }
             }
         }
