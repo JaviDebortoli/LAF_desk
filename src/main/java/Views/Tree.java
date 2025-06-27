@@ -54,13 +54,19 @@ public class Tree extends JFrame {
         
         LAFGraph.getModel().beginUpdate();
         try {
-            createGraph(graph);
+            // PASO 1: Crear el grafo de inferencias (hechos, reglas, nodos dMP)
+            createInferenceGraph(graph);
             
+            // PASO 2: Aplicar el layout al grafo de inferencias
             mxHierarchicalLayout layout = new mxHierarchicalLayout(LAFGraph);
             layout.setInterRankCellSpacing(70);
             layout.setInterHierarchySpacing(200);
             layout.setIntraCellSpacing(80);
             layout.execute(parent);
+            
+            // PASO 3: Agregar nodos CA sin modificar el layout existente
+            addConflictiveNodes(graph.conflictiveNodes());
+            
         } finally {
             LAFGraph.getModel().endUpdate();
         }
@@ -72,7 +78,10 @@ public class Tree extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    private void createGraph(Graph graph) {
+    /**
+     * MÉTODO MODIFICADO: Crea solo el grafo de inferencias (sin nodos CA)
+     */
+    private void createInferenceGraph(Graph graph) {
         // Crear primero todos los vértices de hechos y reglas
         for (Map.Entry<KnowledgePiece, List<Fact>> entry : graph.edges().entrySet()) {
             createVertex(entry.getKey());
@@ -110,50 +119,80 @@ public class Tree extends JFrame {
                 }
             }
         }
-        
-        // NUEVA FUNCIONALIDAD: Crear nodos CA para hechos conflictivos
-        createConflictiveNodes(graph.conflictiveNodes());
     }
 
     /**
-     * NUEVO MÉTODO: Crea nodos CA para representar conflictos entre hechos
+     * MÉTODO MODIFICADO: Agrega los nodos CA después de que el layout principal esté aplicado
+     * Ahora con aristas bidireccionales y que salen desde el borde de los nodos
      */
-    private void createConflictiveNodes(List<Pair> conflictiveNodes) {
+    private void addConflictiveNodes(List<Pair> conflictiveNodes) {
+        if (conflictiveNodes == null || conflictiveNodes.isEmpty()) {
+            return;
+        }
+
         for (Pair conflictivePair : conflictiveNodes) {
             Fact firstFact = conflictivePair.first();
             Fact secondFact = conflictivePair.second();
-            
-            // Crear un nodo CA único para este conflicto
-            String caId = "CA_" + (++caCounter);
-            Object caNode = createCANode(caId);
             
             // Obtener los vértices de los hechos conflictivos
             Object firstFactVertex = vertexMap.get(firstFact);
             Object secondFactVertex = vertexMap.get(secondFact);
             
             if (firstFactVertex != null && secondFactVertex != null) {
-                // Conectar ambos hechos al nodo CA con flechas bidireccionales
-                // Conectar primer hecho al nodo CA
-                LAFGraph.insertEdge(parent, null, "", firstFactVertex, caNode, 
-                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic");
+                // Crear un nodo CA único para este conflicto
+                String caId = "CA_" + (++caCounter);
+                Object caNode = createCANodeBetweenFacts(caId, firstFactVertex, secondFactVertex);
                 
-                // Conectar segundo hecho al nodo CA
+                // MODIFICACIÓN: Conectar ambos hechos al nodo CA con flechas bidireccionales rojas
+                // que salen desde el borde de cada nodo
+                LAFGraph.insertEdge(parent, null, "", firstFactVertex, caNode, 
+                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic;startArrow=classic;exitPerimeter=1;entryPerimeter=1");
+                
                 LAFGraph.insertEdge(parent, null, "", secondFactVertex, caNode, 
-                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic");
+                    "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#FF0000;endArrow=classic;startArrow=classic;exitPerimeter=1;entryPerimeter=1");
             }
         }
     }
 
     /**
-     * NUEVO MÉTODO: Crea un nodo CA (Conflictive Arguments)
+     * MÉTODO MODIFICADO: Crea un nodo CA posicionado entre los dos hechos conflictivos
      */
-    private Object createCANode(String caId) {
+    private Object createCANodeBetweenFacts(String caId, Object firstFactVertex, Object secondFactVertex) {
+        // Obtener las coordenadas usando la geometría del modelo, no el estado de la vista
+        com.mxgraph.model.mxGeometry geom1 = LAFGraph.getModel().getGeometry(firstFactVertex);
+        com.mxgraph.model.mxGeometry geom2 = LAFGraph.getModel().getGeometry(secondFactVertex);
+        
+        double x1 = geom1.getX() + geom1.getWidth() / 2;  // Centro del primer nodo
+        double y1 = geom1.getY() + geom1.getHeight() / 2; // Centro del primer nodo
+        double x2 = geom2.getX() + geom2.getWidth() / 2;  // Centro del segundo nodo
+        double y2 = geom2.getY() + geom2.getHeight() / 2; // Centro del segundo nodo
+        
+        // Calcular la posición intermedia para el nodo CA
+        double caX = (x1 + x2) / 2;
+        double caY = (y1 + y2) / 2;
+        
+        // Ajustar la posición para evitar superposición con aristas existentes
+        // Si los nodos están muy cerca horizontalmente, desplazar el CA verticalmente
+        if (Math.abs(x2 - x1) < 100) {
+            caY += 60; // Desplazar hacia abajo
+        }
+        // Si los nodos están muy cerca verticalmente, desplazar el CA horizontalmente
+        if (Math.abs(y2 - y1) < 60) {
+            caX += 80; // Desplazar hacia la derecha
+        }
+        
+        // MODIFICACIÓN: Ajustar la posición para centrar el nodo CA correctamente
+        caX -= 25; // Centrar el nodo CA (ancho/2)
+        caY -= 25; // Centrar el nodo CA (alto/2)
+        
         // Crear un nodo romboidal para CA con color rojo para indicar conflicto
+        // MODIFICACIÓN: Agregar perimeter para mejorar las conexiones de las aristas
         String style = "shape=rhombus;fillColor=#FFE6E6;strokeColor=#FF0000;strokeWidth=2;" +
-                      "fontSize=10;fontStyle=1;verticalAlign=middle;align=center;fontColor=#FF0000";
+                      "fontSize=10;fontStyle=1;verticalAlign=middle;align=center;fontColor=#FF0000;" +
+                      "perimeter=rhombusPerimeter";
         
         Object caNode = LAFGraph.insertVertex(parent, null, "CA", 
-            0, 0, 50, 50, style);
+            caX, caY, 50, 50, style);
         
         caNodeMap.put(caId, caNode);
         return caNode;
@@ -169,7 +208,7 @@ public class Tree extends JFrame {
             // Conectar la regla al nodo dMP
             Object ruleVertex = vertexMap.get(rule);
             LAFGraph.insertEdge(parent, null, "", ruleVertex, dmpNode, 
-                "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
+                "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333;exitPerimeter=1;entryPerimeter=1");
             
             // Encontrar los hechos que activan esta regla y conectarlos al nodo dMP
             // MODIFICACIÓN: Solo conectar hechos agregados (no duplicados)
@@ -178,21 +217,22 @@ public class Tree extends JFrame {
                 Object factVertex = vertexMap.get(activatingFact);
                 if (factVertex != null) {
                     LAFGraph.insertEdge(parent, null, "", factVertex, dmpNode, 
-                        "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
+                        "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333;exitPerimeter=1;entryPerimeter=1");
                 }
             }
             
             // Conectar el nodo dMP al hecho inferido
             Object inferredFactVertex = vertexMap.get(inferredFact);
             LAFGraph.insertEdge(parent, null, "", dmpNode, inferredFactVertex, 
-                "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333");
+                "edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#333333;exitPerimeter=1;entryPerimeter=1");
         }
     }
 
     private Object createDMPNode(String dmpId) {
-        // Crear un nodo circular para dMP
+        // MODIFICACIÓN: Agregar perimeter para mejorar las conexiones de las aristas
         String style = "shape=ellipse;fillColor=#FFFFFF;strokeColor=#333333;strokeWidth=2;" +
-                      "fontSize=10;fontStyle=1;verticalAlign=middle;align=center";
+                      "fontSize=10;fontStyle=1;verticalAlign=middle;align=center;" +
+                      "perimeter=ellipsePerimeter";
         
         Object dmpNode = LAFGraph.insertVertex(parent, null, "dMP", 
             0, 0, 60, 40, style);
@@ -341,8 +381,9 @@ public class Tree extends JFrame {
             String htmlLabel = createNodeLabel(piece);
             Dimension nodeSize = calculateNodeSize(piece);
             
-            // Nodo transparente sin borde para que solo se vea la tabla HTML
-            String style = "shape=rectangle;fillColor=none;strokeColor=none;fontSize=10;verticalAlign=top";
+            // MODIFICACIÓN: Agregar perimeter para mejorar las conexiones de las aristas
+            String style = "shape=rectangle;fillColor=none;strokeColor=none;fontSize=10;verticalAlign=top;" +
+                          "perimeter=rectanglePerimeter";
             
             Object vertex = LAFGraph.insertVertex(parent, null, htmlLabel, 
                 0, 0, nodeSize.width, nodeSize.height, style);

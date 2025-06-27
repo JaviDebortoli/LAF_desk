@@ -388,7 +388,9 @@ public class InferenceEngine {
     // Trata conflictos entre hechos que se contradicen
     private void conflict() {
         List<Fact> negativeFacts = new ArrayList<>();
-
+        Double[] Attributte1;
+        Double[] Attributte2;
+        
         // Capturar todos los hechos con una negación
         for (Fact fact : facts) {
             if (fact.getName().contains("~")) {
@@ -403,8 +405,11 @@ public class InferenceEngine {
                 if (nf.getName().replace("~", "").equals(fact.getName()) &&
                     nf.getArgument().equals(fact.getArgument())) {
                     
-                    nf.setDeltaAttributes(calculateAttack(nf, fact));
-                    fact.setDeltaAttributes(calculateAttack(fact, nf));
+                    Attributte1 = calculateAttack(nf, fact);
+                    Attributte2 = calculateAttack(fact, nf);
+                    
+                    nf.setAttributes(Attributte1);
+                    fact.setAttributes(Attributte2);
                     
                     conflictiveNodes.add(new Pair(nf, fact));
                 }
