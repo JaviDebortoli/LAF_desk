@@ -6,13 +6,13 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.border.LineBorder;
 
-public class FunctionInputDialog extends JDialog {
+public class OperationsView extends JDialog {
     private final List<JTextField[]> functionFields;
     private final int attributeCount;
     private String[][] result;
     private boolean confirmed;
 
-    public FunctionInputDialog(JFrame parent, int initialAttributeCount) {
+    public OperationsView(JFrame parent, int initialAttributeCount) {
         super(parent, "Function Input Configuration", true);
         this.attributeCount = initialAttributeCount;
         this.functionFields = new ArrayList<>();

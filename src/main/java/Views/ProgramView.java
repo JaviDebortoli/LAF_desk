@@ -6,13 +6,13 @@ import InferenceEngine.InferenceEngine;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Program extends javax.swing.JFrame {
+public class ProgramView extends javax.swing.JFrame {
 
     private final List<Fact> facts;
     private final List<Rule> rules;
     String[][] functions;
     
-    public Program() {
+    public ProgramView() {
         
         facts = new ArrayList<>();
         rules = new ArrayList<>();
@@ -109,7 +109,7 @@ public class Program extends javax.swing.JFrame {
         setFunctions();
 
         InferenceEngine laf = new InferenceEngine(facts, rules, functions);
-        Tree.visualizeInferenceTree(laf.buildTree());
+        GraphView graphView = new GraphView(laf.buildTree().edges());
     }//GEN-LAST:event_nextButtonActionPerformed
     
     // Procesar las reglas
@@ -209,7 +209,7 @@ public class Program extends javax.swing.JFrame {
         
         int attributes = facts.getFirst().getAttributes().length;
 
-        FunctionInputDialog dialog = new FunctionInputDialog(this, attributes);
+        OperationsView dialog = new OperationsView(this, attributes);
         dialog.setVisible(true);
 
         if (dialog.isConfirmed()) {

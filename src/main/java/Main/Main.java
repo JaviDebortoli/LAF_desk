@@ -1,6 +1,6 @@
 package Main;
 
-import Views.Program;
+import Views.ProgramView;
 
 public class Main {
 
@@ -14,11 +14,11 @@ public class Main {
                 }
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(Program.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(ProgramView.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
 
         java.awt.EventQueue.invokeLater(() -> {
-            new Program().setVisible(true);
+            new ProgramView().setVisible(true);
         });
         
     }

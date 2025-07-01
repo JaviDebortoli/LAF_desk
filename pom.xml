@@ -11,11 +11,13 @@
         <exec.mainClass>com.mycompany.laf_v2.LAF_v2</exec.mainClass>
     </properties>
     <dependencies>
+        <!-- JGraphT Ext para JGraphX adapter -->
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-ext</artifactId>
             <version>1.5.2</version>
         </dependency>
+        <!-- Evaluador de funciones -->
         <dependency>
             <groupId>net.objecthunter</groupId>
             <artifactId>exp4j</artifactId>

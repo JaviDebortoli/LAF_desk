@@ -408,8 +408,8 @@ public class InferenceEngine {
                     Attributte1 = calculateAttack(nf, fact);
                     Attributte2 = calculateAttack(fact, nf);
                     
-                    nf.setAttributes(Attributte1);
-                    fact.setAttributes(Attributte2);
+                    nf.setDeltaAttributes(Attributte1);
+                    fact.setDeltaAttributes(Attributte2);
                     
                     conflictiveNodes.add(new Pair(nf, fact));
                 }

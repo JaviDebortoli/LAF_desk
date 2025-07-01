@@ -22,6 +22,10 @@ public class Fact extends KnowledgePiece{
     public String getArgument() {
         return argument;
     }
+
+    public Double[] getDeltaAttributes() {
+        return deltaAttributes;
+    }
     
     public void setAttributes(Double[] attributes) { 
         this.attributes = attributes;
