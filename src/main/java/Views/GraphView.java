@@ -1,5 +1,7 @@
 package Views;
 
+import InferenceEngine.ArgumentativeGraph;
+import InferenceEngine.Pair;
 import KnowledgePieces.*;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -24,6 +26,7 @@ import java.util.List;
 public class GraphView extends JFrame {
     
     private final Map<KnowledgePiece, List<Fact>> edgeStructure;
+    private final List<Pair> conflictiveNodes;
     private Graph<GraphNode, DefaultEdge> graph;
     private JGraphXAdapter<GraphNode, DefaultEdge> graphAdapter;
     private mxGraphComponent graphComponent;
@@ -84,10 +87,6 @@ public class GraphView extends JFrame {
                 
                 // Crear tabla con columnas
                 if (knowledgePiece instanceof Fact && deltaAttributes != null) {
-                    // Para Facts: mostrar attributes y deltaAttributes
-                    //text.append("Attr  | Delta\n");
-                    //text.append("─".repeat(6)).append("┼").append("─".repeat(6)).append("\n");
-                    
                     int maxLength = Math.max(attributes.length, deltaAttributes.length);
                     for (int i = 0; i < maxLength; i++) {
                         String attrValue = i < attributes.length ? 
@@ -98,17 +97,12 @@ public class GraphView extends JFrame {
                         text.append(attrValue).append("  | ").append(deltaValue).append("\n");
                     }
                 } else {
-                    // Para Rules: mostrar attributes en ambas columnas
-                    //text.append("Attr  | Attr\n");
-                    //text.append("─".repeat(6)).append("┼").append("─".repeat(6)).append("\n");
-                    
-                    for (int i = 0; i < attributes.length; i++) {
-                        String attrValue = String.format("%4.1f", attributes[i]);
+                    for (Double attribute : attributes) {
+                        String attrValue = String.format("%4.1f", attribute);
                         text.append(attrValue).append("  | ").append(attrValue).append("\n");
                     }
                 }
-            }
-            
+            } 
             return text.toString();
         }
         
@@ -133,10 +127,13 @@ public class GraphView extends JFrame {
     
     /**
      * Constructor principal
-     * @param edgeStructure
+     * 
+     * @param graph Estructura que contiene todas las aristas y
+     * nodos en conflicto de un grafo argumentativo
      */
-    public GraphView(Map<KnowledgePiece, List<Fact>> edgeStructure) {
-        this.edgeStructure = edgeStructure;
+    public GraphView(ArgumentativeGraph graph) {
+        this.edgeStructure = graph.edges();
+        this.conflictiveNodes = graph.conflictiveNodes();
         initializeGraph();
         setupUI();
     }
@@ -176,7 +173,7 @@ public class GraphView extends JFrame {
      */
     private void setupUI() {
         setTitle("Graph View - Argumentative Framework");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
         
         // Configurar el componente del grafo
@@ -194,7 +191,6 @@ public class GraphView extends JFrame {
         // Configurar ventana
         setSize(1200, 800);
         setLocationRelativeTo(null);
-        setVisible(true);
     }
     
     /**

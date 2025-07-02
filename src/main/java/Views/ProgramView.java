@@ -109,7 +109,8 @@ public class ProgramView extends javax.swing.JFrame {
         setFunctions();
 
         InferenceEngine laf = new InferenceEngine(facts, rules, functions);
-        GraphView graphView = new GraphView(laf.buildTree().edges());
+        GraphView graphView = new GraphView(laf.buildTree());
+        graphView.setVisible(true);
     }//GEN-LAST:event_nextButtonActionPerformed
     
     // Procesar las reglas
@@ -127,7 +128,6 @@ public class ProgramView extends javax.swing.JFrame {
         // Procesar la cabeza
         String headPart = ruleParts[0].trim();
         int openParenIndex = headPart.indexOf('(');
-        int closeParenIndex = headPart.indexOf(')');
         
         String head = headPart.substring(0, openParenIndex).trim();
         

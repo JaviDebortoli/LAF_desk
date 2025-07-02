@@ -28,8 +28,14 @@ public class InferenceEngine {
         this.conflictiveNodes = new ArrayList<>();
     }
     
-    // Inferencias
-    public Graph buildTree() {
+    /**
+     * Clase que se encarga de la generacion de la estructura que
+     * representa las aristas de un grafo argumentativo
+     * 
+     * @return Estructura que representa las aristas del grafo en su atributo 
+     * "edges" y los nodos que se contradicen en su atributo "conflictiveNodes"
+     */
+    public ArgumentativeGraph buildTree() {
         
         List<Fact> potentialFacts = new ArrayList<>();
         boolean anyNewFact;
@@ -45,7 +51,8 @@ public class InferenceEngine {
         }
         
         do {
-            anyNewFact = false; // Indica si se modifico el grafo y hay que repetir el ciclo
+            // Indica si se modifico el grafo y hay que repetir el ciclo
+            anyNewFact = false; 
 
             for (String argument : arguments) { // Ciclo de argumentos
                 for (Rule rule : rules) { // Ciclo de reglas
@@ -88,10 +95,15 @@ public class InferenceEngine {
         
         conflict(); // Se resuelven los conflictos entre hechos
         
-        return new Graph(edges, conflictiveNodes);
+        return new ArgumentativeGraph(edges, conflictiveNodes);
     }
     
-    // Añade un hecho nuevo
+    /**
+     * Crea las aristas para agregar el nuevo hecho
+     * al grafo argumentativo
+     * @param potentialFacts Lista de hechos potenciales que activan la regla
+     * @param 
+     */
     private void addFact (List<Fact> potentialFacts, Fact newFact, Rule rule) {
         
         // Calcular los valores las etiquetas del nuevo hecho 
@@ -115,7 +127,10 @@ public class InferenceEngine {
         }
     }
     
-    // Calcula el valor para los atributos de un nuevo hecho inferido
+    /**
+     * Calcula el valor de los atributos de un hecho inferido
+     * con la operacion definida para el soporte
+     */
     private Double[] support (List<Fact> potentialFacts, Rule rule) {
         Double[] atributtes = new Double[ potentialFacts.getFirst().getAttributes().length ];
         Expression expression;
@@ -153,13 +168,18 @@ public class InferenceEngine {
         return atributtes;
     }
      
-    // Determina si dos hechos son iguales en nombre y argumento
+    /**
+     * Determina si dos hechos son iguales
+     */
     private boolean equalFacts (Fact firstFact, Fact secondFact) {
         return firstFact.getName().equals(secondFact.getName()) 
                 && firstFact.getArgument().equals(secondFact.getArgument());
     } 
     
-    // Determina si un hecho ya fue inferido a partir de una regla
+    /**
+     * Determina si una inferencia en 
+     * particular ya fue realizada
+     */
     private boolean alreadyExists (Fact newFact, Rule rule) {
         boolean existsRule = false;
 
