@@ -39,10 +39,12 @@ public class GraphView extends JFrame {
         private final String displayName;
         private final Double[] attributes;
         private final Double[] deltaAttributes; // Nuevo campo para deltaAttributes
+        private final boolean isCANode; // Indica si es un nodo CA
         
         public GraphNode(KnowledgePiece knowledgePiece) {
             this.knowledgePiece = knowledgePiece;
             this.attributes = knowledgePiece.getAttributes();
+            this.isCANode = false;
             
             // Obtener deltaAttributes si es un Fact
             if (knowledgePiece instanceof Fact fact) {
@@ -56,6 +58,15 @@ public class GraphView extends JFrame {
                 case Rule rule -> this.displayName = rule.getHead() + "(X) :- " + rule.getBody() + "(X)";
                 default -> this.displayName = knowledgePiece.toString();
             }
+        }
+        
+        // Constructor para nodos CA
+        public GraphNode(String caNodeName) {
+            this.knowledgePiece = null;
+            this.attributes = null;
+            this.deltaAttributes = null;
+            this.displayName = caNodeName;
+            this.isCANode = true;
         }
         
         public KnowledgePiece getKnowledgePiece() {
@@ -74,11 +85,19 @@ public class GraphView extends JFrame {
             return deltaAttributes;
         }
         
+        public boolean isCANode() {
+            return isCANode;
+        }
+        
         /**
          * Genera representación de texto en formato tabla para el nodo
          * @return 
          */
         public String getTextRepresentation() {
+            if (isCANode) {
+                return displayName;
+            }
+            
             StringBuilder text = new StringBuilder();
             text.append(displayName).append("\n");
             
@@ -116,12 +135,14 @@ public class GraphView extends JFrame {
             if (this == obj) return true;
             if (obj == null || getClass() != obj.getClass()) return false;
             GraphNode graphNode = (GraphNode) obj;
-            return Objects.equals(knowledgePiece, graphNode.knowledgePiece);
+            return Objects.equals(displayName, graphNode.displayName) && 
+                   Objects.equals(knowledgePiece, graphNode.knowledgePiece) &&
+                   isCANode == graphNode.isCANode;
         }
         
         @Override
         public int hashCode() {
-            return Objects.hash(knowledgePiece);
+            return Objects.hash(knowledgePiece, displayName, isCANode);
         }
     }
     
@@ -188,9 +209,100 @@ public class GraphView extends JFrame {
         // Aplicar layout inicial
         applyHierarchicalLayout();
         
+        // Agregar nodos CA después del layout inicial
+        addCANodes();
+        
         // Configurar ventana
         setSize(1200, 800);
         setLocationRelativeTo(null);
+    }
+    
+    /**
+     * Agrega nodos CA entre los pares conflictivos sin alterar el layout existente
+     */
+    private void addCANodes() {
+        mxGraph mxGraph = graphAdapter;
+        mxGraph.getModel().beginUpdate();
+        
+        try {
+            // Crear mapa de Facts a GraphNodes para búsqueda rápida
+            Map<Fact, GraphNode> factToNodeMap = new HashMap<>();
+            for (GraphNode node : graph.vertexSet()) {
+                if (node.getKnowledgePiece() instanceof Fact fact) {
+                    factToNodeMap.put(fact, node);
+                }
+            }
+            
+            int caCounter = 1;
+            for (Pair conflictivePair : conflictiveNodes) {
+                GraphNode firstNode = factToNodeMap.get(conflictivePair.first());
+                GraphNode secondNode = factToNodeMap.get(conflictivePair.second());
+                
+                if (firstNode != null && secondNode != null) {
+                    // Crear nodo CA
+                    GraphNode caNode = new GraphNode("CA");
+                    
+                    // Obtener las celdas correspondientes a los nodos conflictivos
+                    mxCell firstCell = (mxCell) graphAdapter.getVertexToCellMap().get(firstNode);
+                    mxCell secondCell = (mxCell) graphAdapter.getVertexToCellMap().get(secondNode);
+                    
+                    if (firstCell != null && secondCell != null) {
+                        // Calcular posición intermedia entre los dos nodos
+                        double x1 = firstCell.getGeometry().getCenterX();
+                        double y1 = firstCell.getGeometry().getCenterY();
+                        double x2 = secondCell.getGeometry().getCenterX();
+                        double y2 = secondCell.getGeometry().getCenterY();
+                        
+                        double caX = (x1 + x2) / 2;
+                        double caY = (y1 + y2) / 2;
+                        
+                        // Crear celda para el nodo CA
+                        mxCell caCell = (mxCell) mxGraph.insertVertex(
+                            mxGraph.getDefaultParent(),
+                            null,
+                            caNode.getTextRepresentation(),
+                            caX - 25, // Centrar el nodo (ancho/2)
+                            caY - 25, // Centrar el nodo (alto/2)
+                            50,       // Ancho del nodo CA
+                            50        // Alto del nodo CA
+                        );
+                        
+                        // Aplicar estilo específico para nodos CA
+                        caCell.setStyle("CA_NODE");
+                        
+                        // Agregar el nodo al grafo interno para mantener consistencia
+                        graph.addVertex(caNode);
+                        graphAdapter.getVertexToCellMap().put(caNode, caCell);
+                        graphAdapter.getCellToVertexMap().put(caCell, caNode);
+                        
+                        // Crear aristas desde los nodos conflictivos hacia el nodo CA
+                        mxCell edge1 = (mxCell) mxGraph.insertEdge(
+                            mxGraph.getDefaultParent(),
+                            null,
+                            "",
+                            firstCell,
+                            caCell
+                        );
+                        edge1.setStyle("CA_EDGE");
+                        
+                        mxCell edge2 = (mxCell) mxGraph.insertEdge(
+                            mxGraph.getDefaultParent(),
+                            null,
+                            "",
+                            secondCell,
+                            caCell
+                        );
+                        edge2.setStyle("CA_EDGE");
+                    }
+                    
+                    caCounter++;
+                }
+            }
+        } finally {
+            mxGraph.getModel().endUpdate();
+        }
+        
+        graphComponent.refresh();
     }
     
     /**
@@ -242,6 +354,20 @@ public class GraphView extends JFrame {
         nodeStyle.put(mxConstants.STYLE_WHITE_SPACE, "wrap");
         mxGraph.getStylesheet().putCellStyle("NODE", nodeStyle);
         
+        // Estilo para nodos CA - diamante
+        Map<String, Object> caNodeStyle = new HashMap<>();
+        caNodeStyle.put(mxConstants.STYLE_SHAPE, mxConstants.SHAPE_RHOMBUS);
+        caNodeStyle.put(mxConstants.STYLE_FILLCOLOR, "#ffffff");
+        caNodeStyle.put(mxConstants.STYLE_STROKECOLOR, "#000000");
+        caNodeStyle.put(mxConstants.STYLE_STROKEWIDTH, 2);
+        caNodeStyle.put(mxConstants.STYLE_FONTCOLOR, "#000000");
+        caNodeStyle.put(mxConstants.STYLE_FONTSIZE, 12);
+        caNodeStyle.put(mxConstants.STYLE_FONTSTYLE, 1); // Bold
+        caNodeStyle.put(mxConstants.STYLE_FONTFAMILY, "Arial");
+        caNodeStyle.put(mxConstants.STYLE_VERTICAL_ALIGN, mxConstants.ALIGN_MIDDLE);
+        caNodeStyle.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_CENTER);
+        mxGraph.getStylesheet().putCellStyle("CA_NODE", caNodeStyle);
+        
         // Estilo para aristas
         Map<String, Object> edgeStyle = new HashMap<>();
         edgeStyle.put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ORTHOGONAL);
@@ -251,6 +377,18 @@ public class GraphView extends JFrame {
         edgeStyle.put(mxConstants.STYLE_ENDSIZE, 8);
         edgeStyle.put(mxConstants.STYLE_NOLABEL, true); // Sin etiquetas en aristas
         mxGraph.getStylesheet().putCellStyle("EDGE", edgeStyle);
+        
+        // Estilo para aristas CA
+        Map<String, Object> caEdgeStyle = new HashMap<>();
+        caEdgeStyle.put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ORTHOGONAL);
+        caEdgeStyle.put(mxConstants.STYLE_STROKECOLOR, "#ff0000");
+        caEdgeStyle.put(mxConstants.STYLE_STROKEWIDTH, 1);
+        caEdgeStyle.put(mxConstants.STYLE_ENDARROW, mxConstants.ARROW_CLASSIC);
+        caEdgeStyle.put(mxConstants.STYLE_STARTARROW, mxConstants.ARROW_CLASSIC);
+        caEdgeStyle.put(mxConstants.STYLE_ENDSIZE, 8);
+        caEdgeStyle.put(mxConstants.STYLE_STARTSIZE, 8);
+        caEdgeStyle.put(mxConstants.STYLE_NOLABEL, true);
+        mxGraph.getStylesheet().putCellStyle("CA_EDGE", caEdgeStyle);
     }
     
     /**
@@ -297,6 +435,10 @@ public class GraphView extends JFrame {
      * Calcula el tamaño apropiado para un nodo basado en su contenido
      */
     private Dimension calculateNodeSize(GraphNode node) {
+        if (node.isCANode()) {
+            return new Dimension(50, 50);
+        }
+        
         // Calcular ancho basado en el formato de tabla
         int nameWidth = node.getDisplayName().length() * 8;
         int tableWidth = 140; // Ancho fijo para la tabla (dos columnas)
