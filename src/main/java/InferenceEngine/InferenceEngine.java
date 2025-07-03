@@ -317,7 +317,7 @@ public class InferenceEngine {
     }
     
     // Eliminar los nodos superiores dado un conjunto de nodos
-    public void eraseUpperNodes (List<Fact> values) {        
+    private void eraseUpperNodes (List<Fact> values) {        
         for (Fact value : values) {
             // Eliminar nodos superiores recursivamente
             if (edges.containsKey(value)) {

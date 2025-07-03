@@ -18,7 +18,6 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-
 /**
  * GraphView class para visualizar el grafo argumentativo usando JGraphT y JGraphX
  * Representa I-nodos con sus atributos en formato de tabla
@@ -196,6 +195,7 @@ public class GraphView extends JFrame {
         setTitle("Graph View - Argumentative Framework");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
+        setExtendedState(MAXIMIZED_BOTH);
         
         // Configurar el componente del grafo
         setupGraphComponent();
@@ -309,6 +309,8 @@ public class GraphView extends JFrame {
      * Configura el componente gráfico
      */
     private void setupGraphComponent() {
+        
+        
         graphComponent = new mxGraphComponent(graphAdapter);
         graphComponent.setConnectable(false);
         graphComponent.getGraph().setAllowDanglingEdges(false);
