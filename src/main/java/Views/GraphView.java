@@ -8,13 +8,18 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.ext.JGraphXAdapter;
 import com.mxgraph.layout.hierarchical.mxHierarchicalLayout;
-import com.mxgraph.swing.mxGraphComponent;
-import com.mxgraph.view.mxGraph;
 import com.mxgraph.model.mxCell;
 import com.mxgraph.model.mxGeometry;
+import com.mxgraph.swing.mxGraphComponent;
 import com.mxgraph.util.mxConstants;
+import com.mxgraph.util.mxRectangle;
+import com.mxgraph.view.mxCellState;
+import com.mxgraph.view.mxGraph;
+import com.mxgraph.view.mxGraphView;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
 import java.util.*;
 import java.util.List;
 
@@ -29,6 +34,12 @@ public class GraphView extends JFrame {
     private Graph<GraphNode, DefaultEdge> graph;
     private JGraphXAdapter<GraphNode, DefaultEdge> graphAdapter;
     private mxGraphComponent graphComponent;
+
+    private static final double CA_NODE_SIZE = 50.0;
+    private static final double CA_NODE_HALF_SIZE = CA_NODE_SIZE / 2.0;
+    private static final double POSITION_STEP = 80.0;
+    private static final int MAX_SEARCH_RADIUS = 10;
+    private static final double EDGE_PADDING = 6.0;
     
     /**
      * Clase interna para representar nodos del grafo con información adicional
@@ -222,8 +233,12 @@ public class GraphView extends JFrame {
      */
     private void addCANodes() {
         mxGraph mxGraph = graphAdapter;
+
+        Map<mxCell, mxRectangle> nodeBounds = collectNodeBounds();
+        List<mxRectangle> edgeBounds = collectEdgeBounds();
+
         mxGraph.getModel().beginUpdate();
-        
+
         try {
             // Crear mapa de Facts a GraphNodes para búsqueda rápida
             Map<Fact, GraphNode> factToNodeMap = new HashMap<>();
@@ -232,50 +247,50 @@ public class GraphView extends JFrame {
                     factToNodeMap.put(fact, node);
                 }
             }
-            
-            int caCounter = 1;
+
             for (Pair conflictivePair : conflictiveNodes) {
                 GraphNode firstNode = factToNodeMap.get(conflictivePair.first());
                 GraphNode secondNode = factToNodeMap.get(conflictivePair.second());
-                
+
                 if (firstNode != null && secondNode != null) {
-                    // Crear nodo CA
                     GraphNode caNode = new GraphNode("CA");
-                    
-                    // Obtener las celdas correspondientes a los nodos conflictivos
+
                     mxCell firstCell = (mxCell) graphAdapter.getVertexToCellMap().get(firstNode);
                     mxCell secondCell = (mxCell) graphAdapter.getVertexToCellMap().get(secondNode);
-                    
+
                     if (firstCell != null && secondCell != null) {
-                        // Calcular posición intermedia entre los dos nodos
-                        double x1 = firstCell.getGeometry().getCenterX();
-                        double y1 = firstCell.getGeometry().getCenterY();
-                        double x2 = secondCell.getGeometry().getCenterX();
-                        double y2 = secondCell.getGeometry().getCenterY();
-                        
-                        double caX = (x1 + x2) / 2;
-                        double caY = (y1 + y2) / 2;
-                        
-                        // Crear celda para el nodo CA
+                        Point2D position = findValidCANodePosition(firstCell, secondCell, nodeBounds, edgeBounds);
+                        double caCenterX = position.getX();
+                        double caCenterY = position.getY();
+
                         mxCell caCell = (mxCell) mxGraph.insertVertex(
                             mxGraph.getDefaultParent(),
                             null,
                             caNode.getTextRepresentation(),
-                            caX - 25, // Centrar el nodo (ancho/2)
-                            caY - 25, // Centrar el nodo (alto/2)
-                            50,       // Ancho del nodo CA
-                            50        // Alto del nodo CA
+                            caCenterX - CA_NODE_HALF_SIZE,
+                            caCenterY - CA_NODE_HALF_SIZE,
+                            CA_NODE_SIZE,
+                            CA_NODE_SIZE
                         );
-                        
-                        // Aplicar estilo específico para nodos CA
+
                         caCell.setStyle("CA_NODE");
-                        
-                        // Agregar el nodo al grafo interno para mantener consistencia
+
                         graph.addVertex(caNode);
                         graphAdapter.getVertexToCellMap().put(caNode, caCell);
                         graphAdapter.getCellToVertexMap().put(caCell, caNode);
-                        
-                        // Crear aristas desde los nodos conflictivos hacia el nodo CA
+
+                        nodeBounds.put(caCell, new mxRectangle(
+                            caCenterX - CA_NODE_HALF_SIZE,
+                            caCenterY - CA_NODE_HALF_SIZE,
+                            CA_NODE_SIZE,
+                            CA_NODE_SIZE
+                        ));
+
+                        double firstCenterX = firstCell.getGeometry().getCenterX();
+                        double firstCenterY = firstCell.getGeometry().getCenterY();
+                        double secondCenterX = secondCell.getGeometry().getCenterX();
+                        double secondCenterY = secondCell.getGeometry().getCenterY();
+
                         mxCell edge1 = (mxCell) mxGraph.insertEdge(
                             mxGraph.getDefaultParent(),
                             null,
@@ -284,7 +299,7 @@ public class GraphView extends JFrame {
                             caCell
                         );
                         edge1.setStyle("CA_EDGE");
-                        
+
                         mxCell edge2 = (mxCell) mxGraph.insertEdge(
                             mxGraph.getDefaultParent(),
                             null,
@@ -293,16 +308,218 @@ public class GraphView extends JFrame {
                             caCell
                         );
                         edge2.setStyle("CA_EDGE");
+
+                        edgeBounds.add(createEdgeBoundingBox(firstCenterX, firstCenterY, caCenterX, caCenterY));
+                        edgeBounds.add(createEdgeBoundingBox(secondCenterX, secondCenterY, caCenterX, caCenterY));
                     }
-                    
-                    caCounter++;
                 }
             }
         } finally {
             mxGraph.getModel().endUpdate();
         }
-        
+
         graphComponent.refresh();
+    }
+
+    private Map<mxCell, mxRectangle> collectNodeBounds() {
+        Map<mxCell, mxRectangle> bounds = new HashMap<>();
+        for (mxCell cell : graphAdapter.getVertexToCellMap().values()) {
+            mxGeometry geometry = cell.getGeometry();
+            if (geometry != null) {
+                bounds.put(cell, new mxRectangle(
+                    geometry.getX(),
+                    geometry.getY(),
+                    geometry.getWidth(),
+                    geometry.getHeight()
+                ));
+            }
+        }
+        return bounds;
+    }
+
+    private List<mxRectangle> collectEdgeBounds() {
+        List<mxRectangle> bounds = new ArrayList<>();
+        mxGraphView view = graphComponent.getGraph().getView();
+        view.validate();
+        for (mxCell edgeCell : graphAdapter.getEdgeToCellMap().values()) {
+            mxCellState state = view.getState(edgeCell);
+            if (state != null && state.getBoundingBox() != null) {
+                bounds.add(expandRectangle(state.getBoundingBox(), EDGE_PADDING));
+            }
+        }
+        return bounds;
+    }
+
+    private Point2D findValidCANodePosition(mxCell firstCell, mxCell secondCell,
+                                            Map<mxCell, mxRectangle> nodeBounds,
+                                            List<mxRectangle> edgeBounds) {
+        mxGeometry firstGeometry = firstCell.getGeometry();
+        mxGeometry secondGeometry = secondCell.getGeometry();
+
+        double firstCenterX = firstGeometry.getCenterX();
+        double firstCenterY = firstGeometry.getCenterY();
+        double secondCenterX = secondGeometry.getCenterX();
+        double secondCenterY = secondGeometry.getCenterY();
+
+        double midX = (firstCenterX + secondCenterX) / 2.0;
+        double midY = (firstCenterY + secondCenterY) / 2.0;
+
+        double dx = secondCenterX - firstCenterX;
+        double dy = secondCenterY - firstCenterY;
+
+        List<Point2D.Double> directions = createSearchDirections(dx, dy);
+        Set<mxCell> excludedForSegments = new HashSet<>();
+        excludedForSegments.add(firstCell);
+        excludedForSegments.add(secondCell);
+
+        for (int radius = 0; radius <= MAX_SEARCH_RADIUS; radius++) {
+            double distance = radius * POSITION_STEP;
+            for (Point2D.Double direction : directions) {
+                if (radius == 0 && direction.distance(0, 0) > 0) {
+                    continue;
+                }
+
+                double candidateCenterX = midX + direction.getX() * distance;
+                double candidateCenterY = midY + direction.getY() * distance;
+
+                mxRectangle candidateBounds = new mxRectangle(
+                    candidateCenterX - CA_NODE_HALF_SIZE,
+                    candidateCenterY - CA_NODE_HALF_SIZE,
+                    CA_NODE_SIZE,
+                    CA_NODE_SIZE
+                );
+
+                if (isValidCANodePosition(candidateBounds, candidateCenterX, candidateCenterY,
+                    firstCenterX, firstCenterY, secondCenterX, secondCenterY,
+                    nodeBounds, edgeBounds, excludedForSegments)) {
+                    return new Point2D.Double(candidateCenterX, candidateCenterY);
+                }
+            }
+        }
+
+        // Búsqueda adicional hacia abajo en caso de no encontrar posición libre en el radio inicial
+        for (int extra = 1; extra <= MAX_SEARCH_RADIUS * 2; extra++) {
+            double candidateCenterX = midX;
+            double candidateCenterY = midY + extra * POSITION_STEP;
+            mxRectangle candidateBounds = new mxRectangle(
+                candidateCenterX - CA_NODE_HALF_SIZE,
+                candidateCenterY - CA_NODE_HALF_SIZE,
+                CA_NODE_SIZE,
+                CA_NODE_SIZE
+            );
+            if (isValidCANodePosition(candidateBounds, candidateCenterX, candidateCenterY,
+                firstCenterX, firstCenterY, secondCenterX, secondCenterY,
+                nodeBounds, edgeBounds, excludedForSegments)) {
+                return new Point2D.Double(candidateCenterX, candidateCenterY);
+            }
+        }
+
+        return new Point2D.Double(midX, midY + (MAX_SEARCH_RADIUS + 1) * POSITION_STEP);
+    }
+
+    private List<Point2D.Double> createSearchDirections(double dx, double dy) {
+        List<Point2D.Double> directions = new ArrayList<>();
+        directions.add(new Point2D.Double(0, 0));
+        addDirection(directions, -dy, dx);
+        addDirection(directions, dy, -dx);
+        addDirection(directions, dx, dy);
+        addDirection(directions, -dx, -dy);
+        addDirection(directions, 0, 1);
+        addDirection(directions, 0, -1);
+        addDirection(directions, 1, 0);
+        addDirection(directions, -1, 0);
+        addDirection(directions, 1, 1);
+        addDirection(directions, -1, 1);
+        addDirection(directions, 1, -1);
+        addDirection(directions, -1, -1);
+        return directions;
+    }
+
+    private void addDirection(List<Point2D.Double> directions, double x, double y) {
+        double length = Math.hypot(x, y);
+        if (length > 0) {
+            directions.add(new Point2D.Double(x / length, y / length));
+        }
+    }
+
+    private boolean isValidCANodePosition(mxRectangle candidateBounds,
+                                           double candidateCenterX,
+                                           double candidateCenterY,
+                                           double firstCenterX,
+                                           double firstCenterY,
+                                           double secondCenterX,
+                                           double secondCenterY,
+                                           Map<mxCell, mxRectangle> nodeBounds,
+                                           List<mxRectangle> edgeBounds,
+                                           Set<mxCell> excludedNodes) {
+        if (overlapsNodes(candidateBounds, nodeBounds.values())) {
+            return false;
+        }
+
+        if (overlapsEdges(candidateBounds, edgeBounds)) {
+            return false;
+        }
+
+        if (segmentIntersectsNodes(firstCenterX, firstCenterY, candidateCenterX, candidateCenterY, nodeBounds, excludedNodes)) {
+            return false;
+        }
+
+        if (segmentIntersectsNodes(secondCenterX, secondCenterY, candidateCenterX, candidateCenterY, nodeBounds, excludedNodes)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean overlapsNodes(mxRectangle candidateBounds, Collection<mxRectangle> nodes) {
+        for (mxRectangle rect : nodes) {
+            if (rect != null && rect.intersects(candidateBounds)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean overlapsEdges(mxRectangle candidateBounds, Collection<mxRectangle> edges) {
+        for (mxRectangle rect : edges) {
+            if (rect != null && rect.intersects(candidateBounds)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean segmentIntersectsNodes(double x1, double y1, double x2, double y2,
+                                           Map<mxCell, mxRectangle> nodeBounds,
+                                           Set<mxCell> excludedNodes) {
+        Line2D segment = new Line2D.Double(x1, y1, x2, y2);
+        for (Map.Entry<mxCell, mxRectangle> entry : nodeBounds.entrySet()) {
+            if (excludedNodes.contains(entry.getKey())) {
+                continue;
+            }
+            mxRectangle rect = entry.getValue();
+            if (rect != null && segment.intersects(rect)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private mxRectangle createEdgeBoundingBox(double x1, double y1, double x2, double y2) {
+        double minX = Math.min(x1, x2);
+        double minY = Math.min(y1, y2);
+        double width = Math.max(Math.abs(x1 - x2), 1);
+        double height = Math.max(Math.abs(y1 - y2), 1);
+        return expandRectangle(new mxRectangle(minX, minY, width, height), EDGE_PADDING);
+    }
+
+    private mxRectangle expandRectangle(mxRectangle rectangle, double padding) {
+        return new mxRectangle(
+            rectangle.getX() - padding,
+            rectangle.getY() - padding,
+            rectangle.getWidth() + padding * 2,
+            rectangle.getHeight() + padding * 2
+        );
     }
     
     /**
@@ -382,7 +599,6 @@ public class GraphView extends JFrame {
         
         // Estilo para aristas CA
         Map<String, Object> caEdgeStyle = new HashMap<>();
-        caEdgeStyle.put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ORTHOGONAL);
         caEdgeStyle.put(mxConstants.STYLE_STROKECOLOR, "#ff0000");
         caEdgeStyle.put(mxConstants.STYLE_STROKEWIDTH, 1);
         caEdgeStyle.put(mxConstants.STYLE_ENDARROW, mxConstants.ARROW_CLASSIC);
@@ -390,6 +606,7 @@ public class GraphView extends JFrame {
         caEdgeStyle.put(mxConstants.STYLE_ENDSIZE, 8);
         caEdgeStyle.put(mxConstants.STYLE_STARTSIZE, 8);
         caEdgeStyle.put(mxConstants.STYLE_NOLABEL, true);
+        caEdgeStyle.put(mxConstants.STYLE_NOEDGESTYLE, "1");
         mxGraph.getStylesheet().putCellStyle("CA_EDGE", caEdgeStyle);
     }
     
