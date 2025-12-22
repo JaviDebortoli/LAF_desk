@@ -6,22 +6,24 @@ import InferenceEngine.InferenceEngine;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Vista para cargar hechos y reglas.
+ * Versión modificada para permitir redimensionar/maximizar sin romper el orden
+ * (scroll al centro y botón abajo a la derecha).
+ */
 public class ProgramView extends javax.swing.JFrame {
 
     private final List<Fact> facts;
     private final List<Rule> rules;
     String[][] functions;
-    
+
     public ProgramView() {
-        
         facts = new ArrayList<>();
         rules = new ArrayList<>();
         initComponents();
-        
     }
-    
+
     @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
         programPanel = new javax.swing.JPanel();
@@ -31,12 +33,12 @@ public class ProgramView extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("LAF");
-        setResizable(false);
+        setResizable(true);
 
         programPanel.setBackground(new java.awt.Color(255, 255, 255));
 
-        nextButton.setFont(new java.awt.Font("Segoe UI", 1, 18)); // NOI18N
-        nextButton.setText("»");
+        nextButton.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
+        nextButton.setText("SIGUIENTE");
         nextButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 nextButtonActionPerformed(evt);
@@ -46,51 +48,42 @@ public class ProgramView extends javax.swing.JFrame {
         programTextArea.setColumns(20);
         programTextArea.setRows(5);
         programTextArea.setVerifyInputWhenFocusTarget(false);
+        programTextArea.setFont(new java.awt.Font("Segoe UI", 0, 20));
         programScrollPanel.setViewportView(programTextArea);
 
-        javax.swing.GroupLayout programPanelLayout = new javax.swing.GroupLayout(programPanel);
-        programPanel.setLayout(programPanelLayout);
-        programPanelLayout.setHorizontalGroup(
-            programPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(programPanelLayout.createSequentialGroup()
-                .addGap(30, 30, 30)
-                .addGroup(programPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(nextButton, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(programScrollPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 740, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(30, 30, 30))
-        );
-        programPanelLayout.setVerticalGroup(
-            programPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(programPanelLayout.createSequentialGroup()
-                .addGap(30, 30, 30)
-                .addComponent(programScrollPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 483, Short.MAX_VALUE)
-                .addGap(18, 18, 18)
-                .addComponent(nextButton, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(30, 30, 30))
-        );
+        programPanel.setLayout(new java.awt.BorderLayout(12, 12));
+        programPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(programPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        // Centro: el scroll crece/encoge con la ventana
+        programPanel.add(programScrollPanel, java.awt.BorderLayout.CENTER);
+
+        // Sur: botón alineado a la derecha
+        javax.swing.JPanel southPanel = new javax.swing.JPanel(
+                new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0)
         );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(programPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-        );
+        southPanel.setOpaque(false); // mantener el fondo blanco del programPanel
+        southPanel.add(nextButton);
+        programPanel.add(southPanel, java.awt.BorderLayout.SOUTH);
+
+        // ContentPane: también BorderLayout para ocupar todo el frame
+        getContentPane().setLayout(new java.awt.BorderLayout());
+        getContentPane().add(programPanel, java.awt.BorderLayout.CENTER);
+
+        // Tamaños sugeridos (opcionales, pero ayudan a una UX estable)
+        setMinimumSize(new java.awt.Dimension(600, 450));
+        setPreferredSize(new java.awt.Dimension(820, 620));
 
         pack();
         setLocationRelativeTo(null);
-    }// </editor-fold>//GEN-END:initComponents
+    }
 
-    private void nextButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nextButtonActionPerformed
+    private void nextButtonActionPerformed(java.awt.event.ActionEvent evt) {
         // Limpiar hechos y reglas
         facts.clear();
         rules.clear();
 
         String program = programTextArea.getText();
-        String[] lines = program.split("\n");   
+        String[] lines = program.split("\n");
 
         for (String line : lines) {
 
@@ -111,31 +104,31 @@ public class ProgramView extends javax.swing.JFrame {
         InferenceEngine laf = new InferenceEngine(facts, rules, functions);
         GraphView graphView = new GraphView(laf.buildTree());
         graphView.setVisible(true);
-    }//GEN-LAST:event_nextButtonActionPerformed
-    
+    }
+
     // Procesar las reglas
-    private void processRule (String line) {
-        
+    private void processRule(String line) {
+
         // Separar la regla de los atributos
         String[] mainParts = line.split("\\. ");
-        
+
         String ruleData = mainParts[0];
         String attributesStr = mainParts[1].replaceAll("[{}\\s]", "");
-        
+
         // Separar cabeza y cuerpo
         String[] ruleParts = ruleData.split(":-");
-        
+
         // Procesar la cabeza
         String headPart = ruleParts[0].trim();
         int openParenIndex = headPart.indexOf('(');
-        
+
         String head = headPart.substring(0, openParenIndex).trim();
-        
+
         // Procesar el cuerpo
         String bodyPart = ruleParts[1].trim();
         ArrayList<String> body = new ArrayList<>();
-        
-         // Dividir el cuerpo en predicados individuales
+
+        // Dividir el cuerpo en predicados individuales
         String[] predicates = bodyPart.split(",");
         for (String predicate : predicates) {
             predicate = predicate.trim();
@@ -143,70 +136,70 @@ public class ProgramView extends javax.swing.JFrame {
                 body.add(predicate.replaceAll("\\(.*?\\)", ""));
             }
         }
-        
+
         // Procesar los atributos
         String[] attributeStrings = attributesStr.split(",");
         Double[] attributes = new Double[attributeStrings.length];
-        
+
         try {
-            
+
             for (int i = 0; i < attributeStrings.length; i++) {
                 attributes[i] = Double.valueOf(attributeStrings[i]);
             }
-            
+
             // Crear nueva instancia de Rule
             rules.add(new Rule(head, body, attributes));
-        
+
         } catch (NumberFormatException e) {
-            
+
             // Manejar el error si los atributos no son números válidos
             System.err.println("Error parsing attributes in line: " + line);
-        
+
         }
-        
+
     }
-    
+
     // Procesar los hechos
-    private void processFact (String line) {
-        
+    private void processFact(String line) {
+
         // Separar el nombre y argumento de los atributos
         String[] mainParts = line.split("\\. ");
-        
+
         String factData = mainParts[0];
         String attributesStr = mainParts[1].replaceAll("[{}\\s]", "");
-        
+
         // Extraer nombre y argumento
         int openParenIndex = factData.indexOf('(');
         int closeParenIndex = factData.indexOf(')');
-        
+
         String name = factData.substring(0, openParenIndex).trim();
         String argument = factData.substring(openParenIndex + 1, closeParenIndex).trim();
-        
+
         // Procesar los atributos
         String[] attributeStrings = attributesStr.split(",");
         Double[] attributes = new Double[attributeStrings.length];
-        
+
         try {
-            
+
             for (int i = 0; i < attributeStrings.length; i++) {
                 attributes[i] = Double.valueOf(attributeStrings[i]);
             }
-            
+
             // Crear nueva instancia de Fact
             facts.add(new Fact(name, argument, attributes));
-            
+
         } catch (NumberFormatException e) {
-            
+
             // Manejar el error si los atributos no son números válidos
             System.err.println("Error parsing attributes in line: " + line);
-        
+
         }
-        
+
     }
-    
+
     // Procesar las funciones
     private void setFunctions() {
-        
+
         int attributes = facts.getFirst().getAttributes().length;
 
         OperationsView dialog = new OperationsView(this, attributes);
@@ -230,11 +223,10 @@ public class ProgramView extends javax.swing.JFrame {
         }
 
     }
-    
-    // Variables declaration - do not modify//GEN-BEGIN:variables
+
+    // Variables declaration
     private javax.swing.JButton nextButton;
     private javax.swing.JPanel programPanel;
     private javax.swing.JScrollPane programScrollPanel;
     private javax.swing.JTextArea programTextArea;
-    // End of variables declaration//GEN-END:variables
 }

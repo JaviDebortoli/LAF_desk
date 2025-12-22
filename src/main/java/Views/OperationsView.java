@@ -46,7 +46,7 @@ public class OperationsView extends JDialog {
 
         // Panel de botones
         JPanel buttonPanel = new JPanel();
-        JButton okButton = new JButton("OK");
+        JButton okButton = new JButton("ACEPTAR");
 
         okButton.addActionListener(e -> {
             if (validateInput()) {
