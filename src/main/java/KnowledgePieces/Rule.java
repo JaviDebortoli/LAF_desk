@@ -1,6 +1,5 @@
 package KnowledgePieces;
 
-import java.util.Arrays;
 import java.util.List;
 
 public class Rule extends KnowledgePiece{
@@ -24,7 +23,7 @@ public class Rule extends KnowledgePiece{
     
     @Override
     public String toString() {        
-        return head + "(X) :- " + body + "(X). " + Arrays.toString(attributes);
+        return head + "(X) :- " + body.toString().substring(1, body.toString().length()-1) + "(X).";
     }
     
 }

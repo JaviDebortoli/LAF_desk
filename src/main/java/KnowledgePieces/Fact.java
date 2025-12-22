@@ -1,7 +1,5 @@
 package KnowledgePieces;
 
-import java.util.Arrays;
-
 public class Fact extends KnowledgePiece{
     
     private final String name;
@@ -38,11 +36,7 @@ public class Fact extends KnowledgePiece{
     
     @Override
     public String toString() {
-        return name + '(' 
-                + argument + "). " 
-                + Arrays.toString(attributes) 
-                +" "
-                + Arrays.toString(deltaAttributes);
+        return name + '(' + argument + ").";
     }
     
 }

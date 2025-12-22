@@ -33,118 +33,128 @@ public class GraphView extends JFrame {
     /**
      * Clase interna para representar nodos del grafo con información adicional
      */
-    public static class GraphNode {
-        private final KnowledgePiece knowledgePiece;
-        private final String displayName;
-        private final Double[] attributes;
-        private final Double[] deltaAttributes; // Nuevo campo para deltaAttributes
-        private final boolean isCANode; // Indica si es un nodo CA
-        
-        public GraphNode(KnowledgePiece knowledgePiece) {
-            this.knowledgePiece = knowledgePiece;
-            this.attributes = knowledgePiece.getAttributes();
-            this.isCANode = false;
-            
-            // Obtener deltaAttributes si es un Fact
-            if (knowledgePiece instanceof Fact fact) {
-                this.deltaAttributes = fact.getDeltaAttributes();
-            } else {
-                this.deltaAttributes = null;
-            }
-            
-            switch (knowledgePiece) {
-                case Fact fact -> this.displayName = fact.getName() + "(" + fact.getArgument() + ")";
-                case Rule rule -> this.displayName = rule.getHead() + "(X) :- " + rule.getBody() + "(X)";
-                default -> this.displayName = knowledgePiece.toString();
-            }
-        }
-        
-        // Constructor para nodos CA
-        public GraphNode(String caNodeName) {
-            this.knowledgePiece = null;
-            this.attributes = null;
+    class GraphNode {
+    private final KnowledgePiece knowledgePiece;
+    private final String displayName;
+    private final Double[] attributes;
+    private final Double[] deltaAttributes;
+    private final boolean isCANode;
+
+    // ✅ ID único para distinguir nodos (especialmente CA)
+    private final String uniqueId;
+
+    public GraphNode(KnowledgePiece knowledgePiece) {
+        this.knowledgePiece = knowledgePiece;
+        this.attributes = knowledgePiece.getAttributes();
+        this.isCANode = false;
+        this.uniqueId = Integer.toHexString(System.identityHashCode(knowledgePiece));
+
+        // Obtener deltaAttributes si es un Fact
+        if (knowledgePiece instanceof Fact fact) {
+            this.deltaAttributes = fact.getDeltaAttributes();
+        } else {
             this.deltaAttributes = null;
-            this.displayName = caNodeName;
-            this.isCANode = true;
         }
-        
-        public KnowledgePiece getKnowledgePiece() {
-            return knowledgePiece;
-        }
-        
-        public String getDisplayName() {
-            return displayName;
-        }
-        
-        public Double[] getAttributes() {
-            return attributes;
-        }
-        
-        public Double[] getDeltaAttributes() {
-            return deltaAttributes;
-        }
-        
-        public boolean isCANode() {
-            return isCANode;
-        }
-        
-        /**
-         * Genera representación de texto en formato tabla para el nodo
-         * @return 
-         */
-        public String getTextRepresentation() {
-            if (isCANode) {
-                return displayName;
-            }
-            
-            StringBuilder text = new StringBuilder();
-            text.append(displayName).append("\n");
-            
-            if (attributes != null && attributes.length > 0) {
-                text.append("─".repeat(Math.max(20, displayName.length()))).append("\n");
-                
-                // Crear tabla con columnas
-                if (knowledgePiece instanceof Fact && deltaAttributes != null) {
-                    int maxLength = Math.max(attributes.length, deltaAttributes.length);
-                    for (int i = 0; i < maxLength; i++) {
-                        String attrValue = i < attributes.length ? 
-                            String.format("%4.1f", attributes[i]) : "    ";
-                        String deltaValue = i < deltaAttributes.length ? 
-                            String.format("%5.1f", deltaAttributes[i]) : "     ";
-                        
-                        text.append(attrValue).append("  | ").append(deltaValue).append("\n");
-                    }
-                } else {
-                    for (Double attribute : attributes) {
-                        String attrValue = String.format("%4.1f", attribute);
-                        text.append(attrValue).append("  | ").append(attrValue).append("\n");
-                    }
-                }
-            } 
-            return text.toString();
-        }
-        
-        @Override
-        public String toString() {
-            return displayName;
-        }
-        
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-            GraphNode graphNode = (GraphNode) obj;
-            return Objects.equals(displayName, graphNode.displayName) && 
-                   Objects.equals(knowledgePiece, graphNode.knowledgePiece) &&
-                   isCANode == graphNode.isCANode;
-        }
-        
-        @Override
-        public int hashCode() {
-            return Objects.hash(knowledgePiece, displayName, isCANode);
+
+        switch (knowledgePiece) {
+            case Fact fact -> this.displayName = fact.toString();
+            case Rule rule -> this.displayName = rule.toString();
+            default -> this.displayName = knowledgePiece.toString();
         }
     }
-    
+
+    public GraphNode(String caNodeName) {
+        this.knowledgePiece = null;
+        this.attributes = null;
+        this.deltaAttributes = null;
+        this.displayName = caNodeName;
+        this.isCANode = true;
+        this.uniqueId = java.util.UUID.randomUUID().toString();
+    }
+
+    public KnowledgePiece getKnowledgePiece() {
+        return knowledgePiece;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public Double[] getAttributes() {
+        return attributes;
+    }
+
+    public Double[] getDeltaAttributes() {
+        return deltaAttributes;
+    }
+
+    public boolean isCANode() {
+        return isCANode;
+    }
+
+    /**
+     * Genera representación de texto en formato tabla para el nodo
+     */
+    public String getTextRepresentation() {
+        if (isCANode) {
+            return "CA";
+        }
+
+        StringBuilder text = new StringBuilder();
+        text.append(displayName).append("\n");
+
+        if (attributes != null && attributes.length > 0) {
+            text.append("─".repeat(Math.max(20, displayName.length()))).append("\n");
+
+            // Tabla accrued
+            for (int i = 0; i < attributes.length; i++) {
+                text.append(String.format("%4.1f", attributes[i]));
+                if (i < attributes.length - 1) text.append(" | ");
+            }
+
+            // Tabla weakened si aplica
+            if (deltaAttributes != null && deltaAttributes.length > 0) {
+                text.append("\n");
+                for (int i = 0; i < deltaAttributes.length; i++) {
+                    text.append(String.format("%4.1f", deltaAttributes[i]));
+                    if (i < deltaAttributes.length - 1) text.append(" | ");
+                }
+            }
+        }
+
+        return text.toString();
+    }
+
+    @Override
+    public String toString() {
+        return displayName;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        GraphNode other = (GraphNode) obj;
+
+        if (this.isCANode || other.isCANode) {
+            return this.isCANode == other.isCANode && java.util.Objects.equals(this.uniqueId, other.uniqueId);
+        }
+
+        return java.util.Objects.equals(displayName, other.displayName)
+                && java.util.Objects.equals(knowledgePiece, other.knowledgePiece)
+                && isCANode == other.isCANode;
+    }
+
+    @Override
+    public int hashCode() {
+        // ✅ Para CA: hash por uniqueId
+        if (isCANode) {
+            return java.util.Objects.hash(true, uniqueId);
+        }
+        return java.util.Objects.hash(knowledgePiece, displayName, isCANode);
+    }
+}
+
     /**
      * Constructor principal
      * 
@@ -163,19 +173,19 @@ public class GraphView extends JFrame {
      */
     private void initializeGraph() {
         graph = new DefaultDirectedGraph<>(DefaultEdge.class);
-        
+
         // Crear mapa de KnowledgePiece a GraphNode para evitar duplicados
         Map<KnowledgePiece, GraphNode> nodeMap = new HashMap<>();
-        
-        // Agregar todos los nodos
+
+        // 1) Agregar todos los nodos base (Facts/Rules) + aristas
         for (Map.Entry<KnowledgePiece, List<Fact>> entry : edgeStructure.entrySet()) {
             KnowledgePiece source = entry.getKey();
             List<Fact> targets = entry.getValue();
-            
+
             // Agregar nodo fuente
             GraphNode sourceNode = nodeMap.computeIfAbsent(source, GraphNode::new);
             graph.addVertex(sourceNode);
-            
+
             // Agregar nodos destino y aristas
             for (Fact target : targets) {
                 GraphNode targetNode = nodeMap.computeIfAbsent(target, GraphNode::new);
@@ -183,128 +193,64 @@ public class GraphView extends JFrame {
                 graph.addEdge(sourceNode, targetNode);
             }
         }
-        
-        // Crear el adaptador JGraphX
+
+        // 2) Index rápido Fact -> GraphNode (solo de los nodos ya creados)
+        Map<Fact, GraphNode> factToNodeMap = new HashMap<>();
+        for (Map.Entry<KnowledgePiece, GraphNode> e : nodeMap.entrySet()) {
+            if (e.getKey() instanceof Fact fact) {
+                factToNodeMap.put(fact, e.getValue());
+            }
+        }
+
+        // 3) Agregar nodos CA como PARTE del grafo antes del adapter (para que el layout los ubique)
+        if (conflictiveNodes != null) {
+            for (Pair conflictivePair : conflictiveNodes) {
+                GraphNode firstNode = factToNodeMap.get(conflictivePair.first());
+                GraphNode secondNode = factToNodeMap.get(conflictivePair.second());
+
+                if (firstNode == null || secondNode == null) {
+                    continue;
+                }
+
+                // ✅ Ahora cada CA será único gracias a uniqueId (aunque muestre "CA")
+                GraphNode caNode = new GraphNode("CA");
+                graph.addVertex(caNode);
+
+                graph.addEdge(firstNode, caNode);
+                graph.addEdge(secondNode, caNode);
+            }
+        }
+
+
+        // 4) Crear el adaptador JGraphX (YA con CA incluidos)
         graphAdapter = new JGraphXAdapter<>(graph);
     }
-    
+
     /**
      * Configura la interfaz de usuario
      */
     private void setupUI() {
-        setTitle("Graph View - Argumentative Framework");
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
-        setExtendedState(MAXIMIZED_BOTH);
-        
+
         // Configurar el componente del grafo
         setupGraphComponent();
-        
+
         // Panel de controles
         JPanel controlPanel = createControlPanel();
-        
+
         add(controlPanel, BorderLayout.NORTH);
         add(graphComponent, BorderLayout.CENTER);
-        
-        // Aplicar layout inicial
+
+        // Aplicar layout inicial (incluye CA, así que no hay solapamientos)
         applyHierarchicalLayout();
-        
-        // Agregar nodos CA después del layout inicial
-        addCANodes();
-        
+
         // Configurar ventana
+        setTitle("Argumentative Graph Visualization");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(1200, 800);
         setLocationRelativeTo(null);
     }
-    
-    /**
-     * Agrega nodos CA entre los pares conflictivos sin alterar el layout existente
-     */
-    private void addCANodes() {
-        mxGraph mxGraph = graphAdapter;
-        mxGraph.getModel().beginUpdate();
-        
-        try {
-            // Crear mapa de Facts a GraphNodes para búsqueda rápida
-            Map<Fact, GraphNode> factToNodeMap = new HashMap<>();
-            for (GraphNode node : graph.vertexSet()) {
-                if (node.getKnowledgePiece() instanceof Fact fact) {
-                    factToNodeMap.put(fact, node);
-                }
-            }
-            
-            int caCounter = 1;
-            for (Pair conflictivePair : conflictiveNodes) {
-                GraphNode firstNode = factToNodeMap.get(conflictivePair.first());
-                GraphNode secondNode = factToNodeMap.get(conflictivePair.second());
-                
-                if (firstNode != null && secondNode != null) {
-                    // Crear nodo CA
-                    GraphNode caNode = new GraphNode("CA");
-                    
-                    // Obtener las celdas correspondientes a los nodos conflictivos
-                    mxCell firstCell = (mxCell) graphAdapter.getVertexToCellMap().get(firstNode);
-                    mxCell secondCell = (mxCell) graphAdapter.getVertexToCellMap().get(secondNode);
-                    
-                    if (firstCell != null && secondCell != null) {
-                        // Calcular posición intermedia entre los dos nodos
-                        double x1 = firstCell.getGeometry().getCenterX();
-                        double y1 = firstCell.getGeometry().getCenterY();
-                        double x2 = secondCell.getGeometry().getCenterX();
-                        double y2 = secondCell.getGeometry().getCenterY();
-                        
-                        double caX = (x1 + x2) / 2;
-                        double caY = (y1 + y2) / 2;
-                        
-                        // Crear celda para el nodo CA
-                        mxCell caCell = (mxCell) mxGraph.insertVertex(
-                            mxGraph.getDefaultParent(),
-                            null,
-                            caNode.getTextRepresentation(),
-                            caX - 25, // Centrar el nodo (ancho/2)
-                            caY - 25, // Centrar el nodo (alto/2)
-                            50,       // Ancho del nodo CA
-                            50        // Alto del nodo CA
-                        );
-                        
-                        // Aplicar estilo específico para nodos CA
-                        caCell.setStyle("CA_NODE");
-                        
-                        // Agregar el nodo al grafo interno para mantener consistencia
-                        graph.addVertex(caNode);
-                        graphAdapter.getVertexToCellMap().put(caNode, caCell);
-                        graphAdapter.getCellToVertexMap().put(caCell, caNode);
-                        
-                        // Crear aristas desde los nodos conflictivos hacia el nodo CA
-                        mxCell edge1 = (mxCell) mxGraph.insertEdge(
-                            mxGraph.getDefaultParent(),
-                            null,
-                            "",
-                            firstCell,
-                            caCell
-                        );
-                        edge1.setStyle("CA_EDGE");
-                        
-                        mxCell edge2 = (mxCell) mxGraph.insertEdge(
-                            mxGraph.getDefaultParent(),
-                            null,
-                            "",
-                            secondCell,
-                            caCell
-                        );
-                        edge2.setStyle("CA_EDGE");
-                    }
-                    
-                    caCounter++;
-                }
-            }
-        } finally {
-            mxGraph.getModel().endUpdate();
-        }
-        
-        graphComponent.refresh();
-    }
-    
+
     /**
      * Configura el componente gráfico
      */
@@ -398,41 +344,56 @@ public class GraphView extends JFrame {
      */
     private void configureCellRenderer() {
         mxGraph mxGraph = graphAdapter;
-        
-        // Configurar las celdas con texto simple
+
         mxGraph.getModel().beginUpdate();
         try {
+            // Configurar vértices
             for (GraphNode node : graph.vertexSet()) {
                 mxCell cell = (mxCell) graphAdapter.getVertexToCellMap().get(node);
                 if (cell != null) {
-                    // Usar representación de texto en formato tabla
                     cell.setValue(node.getTextRepresentation());
-                    cell.setStyle("NODE");
-                    
-                    // Calcular y establecer tamaño apropiado
+
+                    // Estilos distintos para CA vs nodo normal
+                    if (node.isCANode()) {
+                        cell.setStyle("CA_NODE");
+                    } else {
+                        cell.setStyle("NODE");
+                    }
+
+                    // Tamaño según contenido (CA=50x50, resto tabla)
                     Dimension size = calculateNodeSize(node);
-                    mxGeometry geometry = new mxGeometry(
-                        cell.getGeometry().getX(), 
-                        cell.getGeometry().getY(), 
-                        size.width, 
-                        size.height
-                    );
+                    mxGeometry geometry = cell.getGeometry();
+                    if (geometry == null) {
+                        geometry = new mxGeometry(0, 0, size.width, size.height);
+                    } else {
+                        geometry = (mxGeometry) geometry.clone();
+                        geometry.setWidth(size.width);
+                        geometry.setHeight(size.height);
+                    }
                     mxGraph.getModel().setGeometry(cell, geometry);
                 }
             }
-            
+
             // Configurar aristas
             for (DefaultEdge edge : graph.edgeSet()) {
                 mxCell cell = (mxCell) graphAdapter.getEdgeToCellMap().get(edge);
                 if (cell != null) {
-                    cell.setStyle("EDGE");
+                    GraphNode src = graph.getEdgeSource(edge);
+                    GraphNode tgt = graph.getEdgeTarget(edge);
+
+                    // Si conecta con CA, usar estilo CA_EDGE
+                    if ((src != null && src.isCANode()) || (tgt != null && tgt.isCANode())) {
+                        cell.setStyle("CA_EDGE");
+                    } else {
+                        cell.setStyle("EDGE");
+                    }
                 }
             }
         } finally {
             mxGraph.getModel().endUpdate();
         }
     }
-    
+
     /**
      * Calcula el tamaño apropiado para un nodo basado en su contenido
      */

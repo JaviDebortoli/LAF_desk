@@ -5,6 +5,7 @@ import KnowledgePieces.Fact;
 import InferenceEngine.InferenceEngine;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JFrame;
 
 /**
  * Vista para cargar hechos y reglas.
@@ -31,6 +32,7 @@ public class ProgramView extends javax.swing.JFrame {
         programScrollPanel = new javax.swing.JScrollPane();
         programTextArea = new javax.swing.JTextArea();
 
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("LAF");
         setResizable(true);
@@ -71,7 +73,6 @@ public class ProgramView extends javax.swing.JFrame {
 
         // Tamaños sugeridos (opcionales, pero ayudan a una UX estable)
         setMinimumSize(new java.awt.Dimension(600, 450));
-        setPreferredSize(new java.awt.Dimension(820, 620));
 
         pack();
         setLocationRelativeTo(null);
