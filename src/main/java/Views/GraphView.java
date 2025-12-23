@@ -252,8 +252,6 @@ public class GraphView extends JFrame {
      * Configura el componente gráfico
      */
     private void setupGraphComponent() {
-        
-        
         graphComponent = new mxGraphComponent(graphAdapter);
         graphComponent.setConnectable(false);
         graphComponent.getGraph().setAllowDanglingEdges(false);
@@ -283,8 +281,8 @@ public class GraphView extends JFrame {
      */
     private void configureStyles() {
         mxGraph mxGraph = graphAdapter;
-        
-        // Estilo para nodos - rectangular con bordes
+
+        // Nodos normales
         Map<String, Object> nodeStyle = new HashMap<>();
         nodeStyle.put(mxConstants.STYLE_SHAPE, mxConstants.SHAPE_RECTANGLE);
         nodeStyle.put(mxConstants.STYLE_FILLCOLOR, "#ffffff");
@@ -298,8 +296,8 @@ public class GraphView extends JFrame {
         nodeStyle.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_CENTER);
         nodeStyle.put(mxConstants.STYLE_WHITE_SPACE, "wrap");
         mxGraph.getStylesheet().putCellStyle("NODE", nodeStyle);
-        
-        // Estilo para nodos CA - diamante
+
+        // Nodos CA
         Map<String, Object> caNodeStyle = new HashMap<>();
         caNodeStyle.put(mxConstants.STYLE_SHAPE, mxConstants.SHAPE_RHOMBUS);
         caNodeStyle.put(mxConstants.STYLE_FILLCOLOR, "#ffffff");
@@ -312,20 +310,28 @@ public class GraphView extends JFrame {
         caNodeStyle.put(mxConstants.STYLE_VERTICAL_ALIGN, mxConstants.ALIGN_MIDDLE);
         caNodeStyle.put(mxConstants.STYLE_ALIGN, mxConstants.ALIGN_CENTER);
         mxGraph.getStylesheet().putCellStyle("CA_NODE", caNodeStyle);
-        
-        // Estilo para aristas
+
         Map<String, Object> edgeStyle = new HashMap<>();
+
         edgeStyle.put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ORTHOGONAL);
+        edgeStyle.put(mxConstants.STYLE_ORTHOGONAL, 1);
+        edgeStyle.put("jettySize", 24);
+        edgeStyle.put(mxConstants.STYLE_ROUNDED, 1);
+        edgeStyle.put(mxConstants.STYLE_ELBOW, mxConstants.ELBOW_VERTICAL);
         edgeStyle.put(mxConstants.STYLE_STROKECOLOR, "#000000");
         edgeStyle.put(mxConstants.STYLE_STROKEWIDTH, 1);
         edgeStyle.put(mxConstants.STYLE_ENDARROW, mxConstants.ARROW_CLASSIC);
         edgeStyle.put(mxConstants.STYLE_ENDSIZE, 8);
-        edgeStyle.put(mxConstants.STYLE_NOLABEL, true); // Sin etiquetas en aristas
+        edgeStyle.put(mxConstants.STYLE_NOLABEL, true);
         mxGraph.getStylesheet().putCellStyle("EDGE", edgeStyle);
-        
-        // Estilo para aristas CA
+
         Map<String, Object> caEdgeStyle = new HashMap<>();
+
         caEdgeStyle.put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ORTHOGONAL);
+        caEdgeStyle.put(mxConstants.STYLE_ORTHOGONAL, 1);
+        caEdgeStyle.put("jettySize", 34);
+        caEdgeStyle.put(mxConstants.STYLE_ROUNDED, 1);
+        caEdgeStyle.put(mxConstants.STYLE_ELBOW, mxConstants.ELBOW_VERTICAL);
         caEdgeStyle.put(mxConstants.STYLE_STROKECOLOR, "#ff0000");
         caEdgeStyle.put(mxConstants.STYLE_STROKEWIDTH, 1);
         caEdgeStyle.put(mxConstants.STYLE_ENDARROW, mxConstants.ARROW_CLASSIC);
@@ -335,7 +341,7 @@ public class GraphView extends JFrame {
         caEdgeStyle.put(mxConstants.STYLE_NOLABEL, true);
         mxGraph.getStylesheet().putCellStyle("CA_EDGE", caEdgeStyle);
     }
-    
+
     /**
      * Configura el renderizado personalizado de celdas
      */
@@ -451,21 +457,13 @@ public class GraphView extends JFrame {
     private void applyHierarchicalLayout() {
         mxHierarchicalLayout layout = new mxHierarchicalLayout(graphAdapter);
         layout.setOrientation(SwingConstants.NORTH);
-        layout.setIntraCellSpacing(60);
-        layout.setInterRankCellSpacing(100);
+        layout.setIntraCellSpacing(100);
+        layout.setInterRankCellSpacing(250);
         layout.setInterHierarchySpacing(80);
-        layout.setParallelEdgeSpacing(40);
+        layout.setParallelEdgeSpacing(200);
         layout.execute(graphAdapter.getDefaultParent());
         
         graphComponent.refresh();
-    }
-    
-    /**
-     * Método para obtener todos los nodos del grafo
-     * @return 
-     */
-    public Set<GraphNode> getAllNodes() {
-        return new HashSet<>(graph.vertexSet());
     }
     
     /**
