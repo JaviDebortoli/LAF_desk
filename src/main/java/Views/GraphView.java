@@ -212,15 +212,12 @@ public class GraphView extends JFrame {
                     continue;
                 }
 
-                // ✅ Ahora cada CA será único gracias a uniqueId (aunque muestre "CA")
                 GraphNode caNode = new GraphNode("CA");
                 graph.addVertex(caNode);
-
                 graph.addEdge(firstNode, caNode);
                 graph.addEdge(secondNode, caNode);
             }
         }
-
 
         // 4) Crear el adaptador JGraphX (YA con CA incluidos)
         graphAdapter = new JGraphXAdapter<>(graph);
@@ -247,7 +244,7 @@ public class GraphView extends JFrame {
         // Configurar ventana
         setTitle("Argumentative Graph Visualization");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(1200, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
     }
 
